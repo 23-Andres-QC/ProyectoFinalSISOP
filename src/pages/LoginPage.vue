@@ -1,5 +1,5 @@
 <template>
-  <q-page class="flex flex-center bg-blue-1" style="height: 100vh">
+  <q-page class="flex flex-center login-bg" style="height: 100vh">
     <q-card style="min-width: 350px; max-width: 90vw" class="q-pa-lg shadow-2 bg-white">
       <q-card-section class="text-center">
         <div class="text-h5 text-blue-10 q-mb-md">Minutos de Vida</div>
@@ -49,8 +49,12 @@ function login() {
 </script>
 
 <style scoped>
-.bg-blue-1 {
-  background: linear-gradient(135deg, #2196f3 0%, #e3f2fd 100%);
+.login-bg {
+  background: url('https://www.shutterstock.com/image-vector/hand-holding-icon-healthcare-medical-260nw-2489273105.jpg')
+    no-repeat center top fixed;
+  background-size: 100% 120vh;
+  min-height: 100vh;
+  height: 100vh;
 }
 .q-card {
   border-radius: 16px;
