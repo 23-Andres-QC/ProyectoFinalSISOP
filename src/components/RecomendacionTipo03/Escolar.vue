@@ -1,6 +1,6 @@
 <template>
   <div class="recomendacion-hogar-container">
-    <h2 class="titulo">Emergencias en el Hogar</h2>
+    <h2 class="titulo">Emergencias Escolares</h2>
     <div class="botones-imagenes">
       <div v-for="(item, idx) in items" :key="idx" class="boton-imagen">
         <button class="btn-imagen">
@@ -14,46 +14,42 @@
 
 <script setup>
 const items = [
-  { nombre: 'Cortes y heridas', img: new URL('./ImagenesHogar/cortes.png', import.meta.url).href },
-  { nombre: 'Hemorragias', img: new URL('./ImagenesHogar/hemorragias.png', import.meta.url).href },
-  {
-    nombre: 'Contusiones',
-    img: new URL('./ImagenesHogar/contusiones.png', import.meta.url).href,
-  },
-  { nombre: 'Caídas', img: new URL('./ImagenesHogar/caidas.png', import.meta.url).href },
-  { nombre: 'Quemaduras', img: new URL('./ImagenesHogar/quemaduras.png', import.meta.url).href },
   {
     nombre: 'Atragantamiento',
-    img: new URL('./ImagenesHogar/atragantamiento.png', import.meta.url).href,
+    img: new URL('./ImagenesEscolar/Atragantamiento.png', import.meta.url).href,
   },
+  { nombre: 'Caídas', img: new URL('./ImagenesEscolar/Caídas.png', import.meta.url).href },
   {
-    nombre: 'Electrocuciones',
-    img: new URL('./ImagenesHogar/electrocuciones.png', import.meta.url).href,
-  },
-  {
-    nombre: 'Intoxicaciones',
-    img: new URL('./ImagenesHogar/intoxicaciones.png', import.meta.url).href,
-  },
-  {
-    nombre: 'Irritaciones',
-    img: new URL('./ImagenesHogar/irritaciones.png', import.meta.url).href,
-  },
-  {
-    nombre: 'Crisis alérgicas',
-    img: new URL('./ImagenesHogar/alergias.png', import.meta.url).href,
+    nombre: 'Contusiones',
+    img: new URL('./ImagenesEscolar/Contusiones.png', import.meta.url).href,
   },
   {
     nombre: 'Convulsiones',
-    img: new URL('./ImagenesHogar/convulsiones.png', import.meta.url).href,
+    img: new URL('./ImagenesEscolar/Convulsiones.png', import.meta.url).href,
   },
-  { nombre: 'Fracturas', img: new URL('./ImagenesHogar/fracturas.png', import.meta.url).href },
-  { nombre: 'Explosiones', img: new URL('./ImagenesHogar/explosiones.png', import.meta.url).href },
+  { nombre: 'Cortes', img: new URL('./ImagenesEscolar/Cortes.png', import.meta.url).href },
+  {
+    nombre: 'Electrocuciones',
+    img: new URL('./ImagenesEscolar/Electrocuciones.png', import.meta.url).href,
+  },
+  { nombre: 'Esguinces', img: new URL('./ImagenesEscolar/Esguinces.png', import.meta.url).href },
+  { nombre: 'Fracturas', img: new URL('./ImagenesEscolar/Fracturas.png', import.meta.url).href },
+  {
+    nombre: 'Quemaduras',
+    img: new URL('./ImagenesEscolar/Quemaduras leves.png', import.meta.url).href,
+  },
+  { nombre: 'Raspones', img: new URL('./ImagenesEscolar/Raspones.png', import.meta.url).href },
+  {
+    nombre: 'Alérgias',
+    img: new URL('./ImagenesEscolar/Reacciones alérgicas.png', import.meta.url).href,
+  },
+  { nombre: 'Sangrado', img: new URL('./ImagenesEscolar/Sangrado.png', import.meta.url).href },
 ]
 </script>
 
 <script>
 export default {
-  name: 'RecomendacionHogar',
+  name: 'RecomendacionEscolar',
 }
 </script>
 
@@ -64,9 +60,9 @@ export default {
   padding: 2rem 1rem;
   background: linear-gradient(
     to bottom,
-    #ffebee,
-    #ffcdd2
-  ); /* Soft red gradient for home emergencies */
+    #e3f2fd,
+    #bbdefb
+  ); /* Soft blue gradient for school emergencies */
   border-radius: 16px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
   font-family: 'Roboto', sans-serif;
@@ -74,7 +70,7 @@ export default {
 .titulo {
   text-align: center;
   margin-bottom: 2rem;
-  color: #d32f2f;
+  color: #1976d2;
   font-size: 2.5rem;
   font-weight: bold;
   text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
@@ -107,7 +103,7 @@ export default {
   object-fit: cover;
   border-radius: 12px;
   transition: transform 0.3s ease;
-  border: 3px solid #ef9a9a;
+  border: 3px solid #90caf9;
 }
 .img-boton:active {
   transform: scale(0.95);
