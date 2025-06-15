@@ -7,6 +7,8 @@ const routes = [
     ]
   },
 
+  { path: '/tip1', component: () => import('components/RecomendacionTipo01/Hogar.vue') },
+
   // Always leave this as last one,
   // but you can also remove it
   {
