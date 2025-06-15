@@ -4,9 +4,17 @@
       <q-toolbar>
         <q-btn flat dense round icon="menu" aria-label="Menu" @click="toggleLeftDrawer" />
 
-        <q-toolbar-title> Minutos de Vida </q-toolbar-title>
+        <q-toolbar-title class="text-white"> Minutos de Vida </q-toolbar-title>
 
-        <div>Quasar v{{ $q.version }}</div>
+        <q-btn
+          flat
+          label="Quiénes Somos"
+          class="q-ml-md text-white"
+          @click="goTo('quienes-somos')"
+        />
+        <q-btn flat label="Ayuda" class="q-ml-md text-white" @click="goTo('ayuda')" />
+        <q-btn flat label="Contactos" class="q-ml-md text-white" @click="goTo('contactos')" />
+        <q-btn flat label="Más" class="q-ml-md text-white" @click="goTo('mas')" />
       </q-toolbar>
     </q-header>
 
@@ -27,6 +35,16 @@
 <script setup>
 import { ref } from 'vue'
 import EssentialLink from 'components/EssentialLink.vue'
+import { useRouter } from 'vue-router'
+
+const router = useRouter()
+function goTo(route) {
+  // Puedes personalizar las rutas según tu estructura
+  if (route === 'quienes-somos') router.push('/quienes-somos')
+  else if (route === 'ayuda') router.push('/ayuda')
+  else if (route === 'contactos') router.push('/contactos')
+  else if (route === 'mas') router.push('/mas')
+}
 
 const linksList = [
   {
