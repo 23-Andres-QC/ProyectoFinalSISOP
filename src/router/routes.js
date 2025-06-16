@@ -10,6 +10,9 @@ const routes = [
   { path: '/tip3', component: () => import('components/RecomendacionTipo03/Escolar.vue') },
   { path: '/tip4', component: () => import('components/RecomendacionTipo04/Industria.vue') },
   { path: '/tip5', component: () => import('components/RecomendacionTipo05/Montaña.vue') },
+  { path: '/ac', component: () => import('pages/VentanaAccidentesPage.vue') },
+  { path: '/chat', component: () => import('components/Recomendaciones/ChatBot.vue') },
+  { path: '/reco', component: () => import('components/Recomendaciones/Recomendacion.vue') },
 
   // Always leave this as last one,
   // but you can also remove it
