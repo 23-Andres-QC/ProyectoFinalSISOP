@@ -3,7 +3,7 @@
     <h2 class="titulo">Emergencias en la Oficina</h2>
     <div class="botones-imagenes">
       <div v-for="(item, idx) in items" :key="idx" class="boton-imagen">
-        <button class="btn-imagen">
+        <button class="btn-imagen" @click="selectAccident(item.nombre)">
           <img :src="item.img" :alt="item.nombre" class="img-boton" />
         </button>
         <div class="nombre">{{ item.nombre }}</div>
@@ -13,6 +13,9 @@
 </template>
 
 <script setup>
+// Define the emit function for the selectAccident event
+const emit = defineEmits(['selectAccident'])
+
 const items = [
   {
     nombre: 'Cortes y heridas',
@@ -49,11 +52,12 @@ const items = [
     nombre: 'Alérgias',
     img: new URL('./ImagenesOficina/Reacciones alérgicas .png', import.meta.url).href,
   },
-  {
-    nombre: 'Traumatismos',
-    img: new URL('./ImagenesOficina/Traumatismos craneales .png', import.meta.url).href,
-  },
 ]
+
+function selectAccident(accidentTitle) {
+  // Emit the selectAccident event with the accident title
+  emit('selectAccident', accidentTitle)
+}
 </script>
 
 <script>
@@ -64,18 +68,15 @@ export default {
 
 <style scoped>
 .recomendacion-hogar-container {
-  max-width: 700px;
-  margin: 0 auto;
-  padding: 2rem 1rem;
-  background: linear-gradient(
-    to bottom,
-    #ede7f6,
-    #d1c4e9
-  ); /* Soft purple gradient for office emergencies */
-  border-radius: 16px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-  font-family: 'Roboto', sans-serif;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40px;
+  width: 100%;
+  background-color: #f0f8ff; /* Retain the container color */
+  border-radius: 10px;
 }
+
 .titulo {
   text-align: center;
   margin-bottom: 2rem;
@@ -85,20 +86,16 @@ export default {
   text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
 }
 .botones-imagenes {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1.5rem;
-  justify-content: center;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 30px;
+  padding: 30px;
+  width: 100%;
 }
 .boton-imagen {
-  position: relative;
-  transition:
-    transform 0.3s ease,
-    box-shadow 0.3s ease;
-}
-.boton-imagen:hover {
-  transform: scale(1.2);
-  box-shadow: 0 6px 25px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 .btn-imagen {
   background: none;
@@ -107,21 +104,18 @@ export default {
   outline: none;
 }
 .img-boton {
-  width: 120px;
-  height: 120px;
+  width: 150px;
+  height: 150px;
   object-fit: cover;
-  border-radius: 12px;
-  transition: transform 0.3s ease;
-  border: 3px solid #ce93d8;
+  border-radius: 10px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 .img-boton:active {
   transform: scale(0.95);
 }
 .nombre {
+  margin-top: 10px;
+  font-size: 18px;
   text-align: center;
-  margin-top: 0.5rem;
-  font-size: 1.2rem;
-  color: #333;
-  font-weight: 600;
 }
 </style>
