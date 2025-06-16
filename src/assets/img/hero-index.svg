@@ -1,0 +1,7 @@
+<!-- Puedes reemplazar este SVG por uno más bonito si lo deseas. Este es solo un ejemplo decorativo. -->
+<svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="100" cy="100" r="100" fill="#e3f2fd"/>
+  <rect x="60" y="60" width="80" height="80" rx="20" fill="#2196f3"/>
+  <rect x="90" y="90" width="20" height="60" rx="10" fill="#fff"/>
+  <rect x="70" y="110" width="60" height="20" rx="10" fill="#fff"/>
+</svg>
