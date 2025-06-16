@@ -2,7 +2,11 @@ const routes = [
   {
     path: '/',
     component: () => import('layouts/MainLayout.vue'),
-    children: [{ path: '', component: () => import('pages/IndexPage.vue') }],
+    children: [
+      { path: '', component: () => import('pages/LoginPage.vue') },
+      { path: 'principal', component: () => import('pages/IndexPage.vue') },
+      { path: 'botiquin', component: () => import('pages/BotiquinPage.vue') },
+    ],
   },
 
   { path: '/tip1', component: () => import('components/RecomendacionTipo01/Hogar.vue') },
