@@ -5,19 +5,19 @@ const routes = [
     children: [
       { path: '', component: () => import('pages/LoginPage.vue') },
       { path: 'principal', component: () => import('pages/IndexPage.vue') },
-      { path: 'botiquin', component: () => import('pages/BotiquinPage.vue') },
+      { path: 'ac', component: () => import('src/pages/AccidentesPage.vue') },
+      { path: '/botiquin', component: () => import('src/pages/BotiquinyAccidentesPage.vue') },
+      { path: '/hogar', component: () => import('components/RecomendacionTipo01/Hogar.vue') },
+      { path: '/industria', component: () => import('components/RecomendacionTipo02/Oficina.vue') },
+      { path: '/montaña', component: () => import('components/RecomendacionTipo03/Escolar.vue') },
+      { path: '/oficina', component: () => import('components/RecomendacionTipo04/Industria.vue') },
+      { path: '/escolar', component: () => import('components/RecomendacionTipo05/Montaña.vue') },
+      { path: '/reco', component: () => import('components/Recomendaciones/Recomendacion.vue') },
     ],
   },
 
-  { path: '/tip1', component: () => import('components/RecomendacionTipo01/Hogar.vue') },
-  { path: '/tip2', component: () => import('components/RecomendacionTipo02/Oficina.vue') },
-  { path: '/tip3', component: () => import('components/RecomendacionTipo03/Escolar.vue') },
-  { path: '/tip4', component: () => import('components/RecomendacionTipo04/Industria.vue') },
-  { path: '/tip5', component: () => import('components/RecomendacionTipo05/Montaña.vue') },
-  { path: '/ac', component: () => import('pages/VentanaAccidentesPage.vue') },
   { path: '/chat', component: () => import('components/Recomendaciones/ChatBot.vue') },
-  { path: '/reco', component: () => import('components/Recomendaciones/Recomendacion.vue') },
-
+  { path: '/reco1', component: () => import('components/Recomendaciones/Recomendacion.vue') },
   // Always leave this as last one,
   // but you can also remove it
   {
