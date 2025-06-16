@@ -31,7 +31,7 @@
             class="q-mt-md"
             size="lg"
             icon="medical_services"
-            @click="goToBotiquin"
+            @click="goToAccidentes"
           />
         </div>
       </div>
@@ -41,8 +41,9 @@
 
 <script setup>
 import { useRouter } from 'vue-router'
+
 const router = useRouter()
-function goToBotiquin() {
+function goToAccidentes() {
   router.push('/botiquin')
 }
 </script>

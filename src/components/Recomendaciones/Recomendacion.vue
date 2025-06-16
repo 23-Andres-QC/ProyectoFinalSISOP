@@ -1,11 +1,14 @@
 <template>
   <div class="recommendation-container">
+    <!-- Close button -->
+    <button class="close-button" @click="$emit('close')">&times;</button>
+
     <!-- Content of the panel -->
     <div class="panel-content">
-      <p>Aquí puedes agregar contenido relacionado con las recomendaciones.</p>
+      <h2>Recomendaciones</h2>
+      <p>Accidente seleccionado: {{ accident }}</p>
     </div>
-    <!-- Chatbot icon -->
-    <img src="./chat.png" alt="Chatbot Icon" class="chatbot-icon" @click="toggleChatbot" />
+
     <!-- Additional container -->
     <div
       class="additional-container"
@@ -27,18 +30,28 @@
           placeholder="Lista los elementos de tu botiquín"
         ></textarea>
 
-        <button @click="getRecommendations">Obtener Recomendaciones</button>
+        <button @click="getRecommendations" :disabled="isLoading">
+          {{ isLoading ? 'Cargando...' : 'Obtener Recomendaciones' }}
+        </button>
       </div>
 
       <!-- Container for API response steps -->
       <div class="response-section">
         <h3>Pasos a seguir:</h3>
-        <p v-if="steps.length === 0">Las recomendaciones aparecerán aquí.</p>
-        <ul v-else>
-          <li v-for="(step, index) in steps" :key="index" v-html="formatStep(step)"></li>
-        </ul>
+        <p v-if="steps.length === 0 && !isLoading">Las recomendaciones aparecerán aquí.</p>
+        <div v-else v-html="steps.join('')"></div>
       </div>
     </div>
+
+    <!-- Chatbot icon -->
+    <img
+      v-if="!isChatbotOpen"
+      src="./chat.png"
+      alt="Chatbot Icon"
+      class="chatbot-icon"
+      @click="toggleChatbot"
+    />
+
     <!-- Chatbot component -->
     <ChatBot v-if="isChatbotOpen" @chatbotClosed="handleChatbotClosed" />
   </div>
@@ -48,14 +61,21 @@
 import ChatBot from './ChatBot.vue'
 
 export default {
-  name: 'RecommendationPanel',
+  name: 'RecomendacionPanel',
+  props: {
+    accident: {
+      type: String,
+      default: '',
+    },
+  },
   components: {
     ChatBot,
   },
   data() {
     return {
-      isChatbotOpen: false,
-      accidentDescription: '',
+      isChatbotOpen: false, // Chatbot is hidden by default
+      isLoading: false, // Estado para el indicador de carga
+      accidentDescription: this.accident,
       botiquinItems: '',
       steps: [],
     }
@@ -68,17 +88,22 @@ export default {
       this.isChatbotOpen = false
     },
     async getRecommendations() {
+      this.isLoading = true // Activar indicador de carga
       const apiUrl =
         'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=AIzaSyDtA-kE3js3rimDTGsTRlXgcNPAK651Aq8'
       const payload = {
         contents: [
           {
             parts: [
-              { text: `Accidente: ${this.accidentDescription}. Botiquín: ${this.botiquinItems}` },
+              {
+                text: `Accidente: ${this.accidentDescription}. Botiquín: ${this.botiquinItems}`,
+              },
             ],
           },
         ],
       }
+
+      console.log('Botón presionado, payload:', payload) // Log para verificar el payload
 
       try {
         const response = await fetch(apiUrl, {
@@ -89,17 +114,36 @@ export default {
           body: JSON.stringify(payload),
         })
 
+        if (!response.ok) {
+          throw new Error(`Error HTTP! estado: ${response.status}`)
+        }
+
         const data = await response.json()
-        this.steps = data.candidates[0].content.parts.map((part) => part.text)
+        console.log('Respuesta de la API:', data) // Log para verificar la respuesta
+
+        if (data.candidates && data.candidates.length > 0) {
+          this.steps = data.candidates[0].content.parts.map((part) => {
+            // Formatear cada paso según el estilo proporcionado
+            let formattedStep = part.text
+            if (formattedStep.includes('**')) {
+              formattedStep = formattedStep.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            }
+            if (formattedStep.includes('_')) {
+              formattedStep = formattedStep.replace(/_(.*?)_/g, '<em>$1</em>')
+            }
+            return `<p>${formattedStep}</p>` // Separar cada paso con punto y aparte
+          })
+          console.log('Pasos formateados:', this.steps) // Log para verificar los pasos formateados
+        } else {
+          console.warn('No se encontraron candidatos en la respuesta:', data)
+          this.steps = ['<p>No se encontraron recomendaciones.</p>']
+        }
       } catch (error) {
-        console.error('Error fetching recommendations:', error)
+        console.error('Error al obtener recomendaciones:', error)
+        this.steps = [`<p>Hubo un error al obtener las recomendaciones: ${error.message}</p>`]
+      } finally {
+        this.isLoading = false // Desactivar indicador de carga
       }
-    },
-    formatStep(step) {
-      // Add formatting for better visibility
-      return step
-        .replace(/\d+\./g, '<br><span class="step-number">$&</span>') // Highlight numbered steps
-        .replace(/\*\*(.*?)\*\*/g, '<span class="bold-text">$1</span>') // Bold for text wrapped in **
     },
   },
 }
@@ -107,22 +151,32 @@ export default {
 
 <style scoped>
 .recommendation-container {
-  position: absolute;
+  position: fixed;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 1800px;
-  height: 700px;
-  max-width: 100%;
-  max-height: 80%;
+  width: 100%;
+  height: 80%;
+  background-color: #fff;
+  border-radius: 10px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   display: flex;
   flex-direction: column;
-  align-items: center;
   justify-content: center;
-  background-color: #f9f9f9;
-  border: 4px solid #00bfff;
-  border-radius: 8px;
-  padding: 20px;
+  align-items: center;
+  padding: 10px;
+  z-index: 1001;
+  overflow: hidden; /* Prevent overflow issues */
+}
+
+.close-button {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
 }
 
 .panel-content {
@@ -131,13 +185,24 @@ export default {
   margin-bottom: 20px;
 }
 
+.ChatBot {
+  position: absolute; /* Ensure it stays within the container */
+  bottom: 0; /* Position it fully below the chat icon */
+  right: 20px;
+  width: 520px;
+  height: calc(100% - 80px); /* Adjust height to avoid overlap */
+  z-index: 1000; /* Lower than the chat icon */
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
 .chatbot-icon {
-  position: absolute;
-  bottom: 20px; /* Position near the bottom */
-  right: 20px; /* Position near the right corner */
-  width: 50px; /* Adjust size */
-  height: 50px; /* Adjust size */
-  cursor: pointer; /* Indicate interactivity */
+  position: absolute; /* Ensure it stays within the container */
+  bottom: 20px;
+  right: 20px;
+  width: 50px;
+  height: 50px;
+  cursor: pointer;
+  z-index: 1002; /* Higher than the ChatBot component */
 }
 
 .input-section {
@@ -222,12 +287,11 @@ button:hover {
 }
 
 .additional-container {
-  position: absolute;
-  top: 0;
-  left: 0;
-  height: 100%; /* Matches the height of the parent container */
-  width: calc(100% - 120px); /* Default width leaving more space for the chatbot icon */
-  border: 2px solid red; /* Red border */
+  position: absolute; /* Anchor the container within the parent */
+  left: 0; /* Ensure it stays anchored to the left */
+  width: 100%; /* Default width */
+  height: 100%;
+  border: 2px solid red;
   padding: 10px;
   background-color: #fff;
   overflow-y: auto;
@@ -235,10 +299,10 @@ button:hover {
 }
 
 .additional-container.chatbotOpen {
-  width: calc(100% - 510px); /* Adjust width when chatbot is open */
+  width: calc(100% - 520px); /* Reduce width when chatbot is open */
 }
 
 .additional-container.chatbotClosed {
-  width: calc(100% - 150px); /* Reset width when chatbot is closed */
+  width: 100%; /* Reset width when chatbot is closed */
 }
 </style>
