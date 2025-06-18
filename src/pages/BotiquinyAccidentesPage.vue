@@ -44,7 +44,7 @@ const items = [
   {
     nombre: 'Botiquín',
     img: new URL('./imagenesAccidentes/botiquin-icon.png', import.meta.url).href,
-    route: '/accidentes',
+    route: '/botiquin-opciones',
   },
   {
     nombre: 'Accidentes',
@@ -56,6 +56,8 @@ const items = [
 function goTo(route) {
   router.push(route)
 }
+
+// Redirigir a esta página desde el login o donde corresponda
 </script>
 
 <style scoped>
