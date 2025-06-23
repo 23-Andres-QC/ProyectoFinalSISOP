@@ -30,6 +30,12 @@
           class="q-mt-md"
           @click="mostrarHistorial = !mostrarHistorial"
         />
+        <q-btn
+          label="Generar orden de compra"
+          color="accent"
+          class="q-mt-md"
+          @click="generarOrdenCompra"
+        />
       </q-form>
       <div v-if="mostrarHistorial" class="q-mt-lg" style="max-width: 700px; width: 100%">
         <q-card class="bg-grey-1 shadow-3">
@@ -77,6 +83,50 @@
           </q-card-section>
         </q-card>
       </div>
+      <div v-if="mostrarOrdenCompra" class="q-mt-lg" style="max-width: 700px; width: 100%">
+        <q-card class="bg-grey-2 shadow-3">
+          <q-card-section>
+            <div class="row items-center justify-between q-mb-md">
+              <div class="text-h6 text-accent flex items-center">
+                <q-icon name="shopping_cart" color="accent" class="q-mr-sm" />
+                Orden de compra
+              </div>
+              <q-btn
+                dense
+                flat
+                round
+                icon="close"
+                color="grey-7"
+                @click="mostrarOrdenCompra = false"
+                aria-label="Cerrar orden de compra"
+              />
+            </div>
+            <div class="text-grey-7 text-subtitle2 q-pa-md" v-if="ordenCompraItems.length === 0">
+              No hay insumos seleccionados para comprar.
+            </div>
+            <div v-else>
+              <div class="q-mb-sm"><b>Fecha:</b> {{ ordenCompraFecha }}</div>
+              <div class="q-mb-md"><b>N° Orden:</b> {{ ordenCompraNumero }}</div>
+              <q-list bordered separator>
+                <q-item v-for="(item, idx) in ordenCompraItems" :key="idx">
+                  <q-item-section>
+                    <q-chip color="accent" text-color="white" class="q-mr-xs">
+                      <q-icon name="medical_services" size="16px" class="q-mr-xs" />
+                      {{ item.nombre }}: <b>{{ item.cantidad }}</b>
+                    </q-chip>
+                  </q-item-section>
+                </q-item>
+              </q-list>
+            </div>
+            <q-btn
+              label="Cerrar"
+              color="primary"
+              class="q-mt-md"
+              @click="mostrarOrdenCompra = false"
+            />
+          </q-card-section>
+        </q-card>
+      </div>
     </q-page>
   </q-layout>
 </template>
@@ -86,6 +136,10 @@ import { reactive, ref } from 'vue'
 
 const mostrarHistorial = ref(false)
 const historial = ref([])
+const mostrarOrdenCompra = ref(false)
+const ordenCompraItems = ref([])
+const ordenCompraFecha = ref('')
+const ordenCompraNumero = ref('')
 
 const industriaItems = [
   'Manta térmica de emergencia (aluminizada)',
@@ -128,6 +182,17 @@ function onSubmit() {
       JSON.stringify(cantidades, null, 2) +
       '\n\n¡Registro añadido al historial local!',
   )
+}
+
+function generarOrdenCompra() {
+  // Solo insumos con cantidad > 0
+  const items = Object.entries(cantidades)
+    .filter(([, cantidad]) => cantidad > 0)
+    .map(([nombre, cantidad]) => ({ nombre, cantidad }))
+  ordenCompraItems.value = items
+  ordenCompraFecha.value = new Date().toLocaleString()
+  ordenCompraNumero.value = 'OC-' + Date.now()
+  mostrarOrdenCompra.value = true
 }
 
 // Al cargar, puedes recuperar el último registro si lo deseas y el historial completo
