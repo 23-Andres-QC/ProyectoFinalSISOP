@@ -107,22 +107,27 @@ function goTo(route) {
   display: flex;
   justify-content: center;
   align-items: center;
+  min-height: 100vh;
   background: url('./imagenesAccidentes/background2.avif') no-repeat center center;
   background-size: cover;
 }
 
 .background-image.expanded {
-  width: 100%;
-  height: 100%;
+  width: 100vw;
+  min-height: 80vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .button-container {
   display: flex;
   flex-wrap: wrap;
-  gap: 20px;
+  gap: 60px;
   justify-content: center;
   align-items: center;
-  height: 100%;
+  min-height: 60vh;
+  padding: 40px 0;
 }
 
 .button-container.centered {
@@ -150,8 +155,8 @@ function goTo(route) {
 }
 
 .img-button {
-  width: 550px;
-  height: 550px;
+  width: 120px;
+  height: 140px;
   object-fit: cover;
   border-radius: 12px;
   transition: transform 0.3s ease;
@@ -162,12 +167,18 @@ function goTo(route) {
   transform: scale(0.95);
 }
 
-.name {
-  text-align: center;
-  margin-top: 0.5rem;
-  font-size: 1.5rem;
-  color: #333;
-  font-weight: 600;
+@media (max-width: 900px) {
+  .img-button {
+    width: 100px;
+    height: 110px;
+  }
+}
+
+@media (max-width: 600px) {
+  .img-button {
+    width: 70px;
+    height: 80px;
+  }
 }
 
 .footer {
