@@ -1,26 +1,23 @@
 <template>
   <div class="page-container">
-    <q-header elevated>
-      <q-toolbar>
-        <q-toolbar-title class="text-white"> Minutos de Vida </q-toolbar-title>
+    <!-- Header -->
+    <header class="header small-header">
+      <div class="header-content">
+        <img src="./imagenesAccidentes/logo.png" alt="Logo" class="header-logo" />
+        <h1 class="header-title">Minutos de Vida</h1>
+        <nav class="nav-links">
+          <a href="#" class="nav-link">Inicio</a>
+          <a href="#" class="nav-link">Conexión</a>
+        </nav>
+      </div>
+    </header>
 
-        <q-btn
-          flat
-          label="Quiénes Somos"
-          class="q-ml-md text-white"
-          @click="goTo('quienes-somos')"
-        />
-        <q-btn flat label="Ayuda" class="q-ml-md text-white" @click="goTo('ayuda')" />
-        <q-btn flat label="Contactos" class="q-ml-md text-white" @click="goTo('contactos')" />
-        <q-btn flat label="Más" class="q-ml-md text-white" @click="goTo('mas')" />
-      </q-toolbar>
-    </q-header>
     <!-- Main Content -->
-    <main class="main-content centered">
+    <main class="main-content">
       <div class="background-image expanded">
-        <div class="button-container centered row">
+        <div class="button-container centered">
           <div v-for="(item, idx) in items" :key="idx" class="button-image">
-            <button class="btn-image" @click="goTo(item.route)">
+            <button class="btn-image" @click="item.route && goTo(item.route)">
               <img :src="item.img" :alt="item.nombre" class="img-button" />
             </button>
             <div class="name">{{ item.nombre }}</div>
@@ -39,7 +36,6 @@
 <script setup>
 import { useRouter } from 'vue-router'
 const router = useRouter()
-
 const items = [
   {
     nombre: 'Botiquín',
@@ -49,38 +45,70 @@ const items = [
   {
     nombre: 'Accidentes',
     img: new URL('./imagenesAccidentes/accidentes-icon.png', import.meta.url).href,
-    route: '/ac',
   },
 ]
 
 function goTo(route) {
   router.push(route)
 }
-
-// Redirigir a esta página desde el login o donde corresponda
 </script>
 
 <style scoped>
-.centered {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 100%;
-}
-.row {
-  flex-direction: row;
-}
 .page-container {
   display: flex;
   flex-direction: column;
   height: 100vh;
 }
 
+.header {
+  width: 100%;
+  background-color: #002366;
+  color: white;
+  padding: 10px;
+  text-align: center;
+  position: fixed;
+  top: 0;
+  z-index: 1000;
+}
+
+.header-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+}
+
+.header-logo {
+  width: 80px;
+  height: 80px;
+}
+
+.header-title {
+  color: white;
+  font-size: 1.5rem;
+  font-weight: bold;
+  margin: 0;
+}
+
+.nav-links {
+  display: flex;
+  gap: 20px;
+}
+
+.nav-link {
+  color: white;
+  text-decoration: none;
+  font-size: 1.2rem;
+  font-weight: bold;
+}
+
 .main-content {
+  flex: 1;
   display: flex;
   justify-content: center;
   align-items: center;
-  height: 100vh; /* Ensure it spans the entire page */
+  background: url('./imagenesAccidentes/background2.avif') no-repeat center center;
+  background-size: cover;
 }
 
 .background-image.expanded {
@@ -91,9 +119,15 @@ function goTo(route) {
 .button-container {
   display: flex;
   flex-wrap: wrap;
-  gap: 30px; /* Adjust spacing for larger buttons */
-  justify-content: center; /* Center buttons horizontally */
-  align-items: center; /* Center buttons vertically */
+  gap: 20px;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+}
+
+.button-container.centered {
+  justify-content: center;
+  align-items: center;
 }
 
 .button-image {
@@ -101,7 +135,6 @@ function goTo(route) {
   transition:
     transform 0.3s ease,
     box-shadow 0.3s ease;
-  margin: 20px;
 }
 
 .button-image:hover {
@@ -117,8 +150,8 @@ function goTo(route) {
 }
 
 .img-button {
-  width: 400px; /* Increased size */
-  height: 450px; /* Increased size */
+  width: 550px;
+  height: 550px;
   object-fit: cover;
   border-radius: 12px;
   transition: transform 0.3s ease;
@@ -132,7 +165,7 @@ function goTo(route) {
 .name {
   text-align: center;
   margin-top: 0.5rem;
-  font-size: 1.5rem; /* Adjusted font size */
+  font-size: 1.5rem;
   color: #333;
   font-weight: 600;
 }
