@@ -3,6 +3,42 @@
     <q-header elevated>
       <q-toolbar>
         <q-toolbar-title class="text-white">Botiquín - Opciones</q-toolbar-title>
+
+        <!-- Enlaces del header -->
+        <q-btn
+          flat
+          label="Quiénes Somos"
+          class="q-ml-md text-white"
+          @click="$router.push('/principal')"
+        />
+        <q-btn
+          flat
+          label="Contactos"
+          class="q-ml-md text-white"
+          @click="$router.push('/contactos')"
+        />
+        <q-btn
+          flat
+          label="Mis Compras"
+          class="q-ml-md text-white"
+          @click="$router.push('/historial-compras')"
+        />
+        <q-btn
+          flat
+          icon="medical_services"
+          label="Ir a Botiquín"
+          @click="$router.push('/botiquin')"
+          class="q-ml-md text-white"
+        >
+          <q-tooltip>Ir a página principal de botiquín</q-tooltip>
+        </q-btn>
+        <q-btn
+          flat
+          icon="logout"
+          label="Cerrar Sesión"
+          class="q-ml-md text-white"
+          @click="logout"
+        />
       </q-toolbar>
     </q-header>
     <q-page class="flex flex-center">
@@ -20,7 +56,10 @@
 
 <script setup>
 import { useRouter } from 'vue-router'
+import { useAuth } from '../composables/useAuth.js'
+
 const router = useRouter()
+const { signOut } = useAuth()
 
 const items = [
   {
@@ -58,6 +97,18 @@ function goToFormulario(tipo) {
     router.push({ path: '/botiquin-frm-montaña' })
   } else {
     router.push({ path: `/botiquin-frm-${tipo.toLowerCase()}` })
+  }
+}
+
+// Función para cerrar sesión
+const logout = async () => {
+  try {
+    const result = await signOut()
+    if (result.success) {
+      router.push('/')
+    }
+  } catch (error) {
+    console.error('Error al cerrar sesión:', error)
   }
 }
 </script>

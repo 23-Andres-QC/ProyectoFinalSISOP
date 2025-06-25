@@ -3,17 +3,34 @@
     <!-- Header -->
     <q-header elevated>
       <q-toolbar>
+        <q-btn flat round dense icon="arrow_back" @click="$router.go(-1)" />
         <q-toolbar-title class="text-white"> Minutos de Vida </q-toolbar-title>
 
         <q-btn
           flat
           label="Quiénes Somos"
           class="q-ml-md text-white"
-          @click="goTo('quienes-somos')"
+          @click="$router.push('/principal')"
         />
-        <q-btn flat label="Ayuda" class="q-ml-md text-white" @click="goTo('ayuda')" />
-        <q-btn flat label="Contactos" class="q-ml-md text-white" @click="goTo('contactos')" />
-        <q-btn flat label="Más" class="q-ml-md text-white" @click="goTo('mas')" />
+        <q-btn
+          flat
+          label="Contactos"
+          class="q-ml-md text-white"
+          @click="$router.push('/contactos')"
+        />
+        <q-btn
+          flat
+          label="Mis Compras"
+          class="q-ml-md text-white"
+          @click="$router.push('/historial-compras')"
+        />
+        <q-btn
+          flat
+          icon="logout"
+          label="Cerrar Sesión"
+          class="q-ml-md text-white"
+          @click="logout"
+        />
       </q-toolbar>
     </q-header>
 
@@ -53,6 +70,7 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { useAuth } from '../composables/useAuth.js'
 import Hogar from 'src/components/RecomendacionTipo01/Hogar.vue'
 import Industria from 'src/components/RecomendacionTipo04/Industria.vue'
 import Montaña from 'src/components/RecomendacionTipo05/Montaña.vue'
@@ -61,6 +79,7 @@ import Escolar from 'src/components/RecomendacionTipo03/Escolar.vue'
 import RecomendacionPanel from 'src/components/Recomendaciones/Recomendacion.vue'
 
 const router = useRouter()
+const { signOut } = useAuth()
 const activeComponent = ref(null)
 const showRecomendacionPanel = ref(false)
 const selectedAccident = ref('')
@@ -139,8 +158,16 @@ function closeComponent() {
   activeComponent.value = null
 }
 
-function goTo(routeName) {
-  router.push({ name: routeName })
+// Función para cerrar sesión
+const logout = async () => {
+  try {
+    const result = await signOut()
+    if (result.success) {
+      router.push('/')
+    }
+  } catch (error) {
+    console.error('Error al cerrar sesión:', error)
+  }
 }
 </script>
 

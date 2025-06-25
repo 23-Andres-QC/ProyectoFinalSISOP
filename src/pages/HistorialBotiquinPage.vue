@@ -4,6 +4,33 @@
       <q-toolbar>
         <q-btn flat round dense icon="arrow_back" @click="$router.go(-1)" />
         <q-toolbar-title class="text-white">Historial de Botiquines</q-toolbar-title>
+
+        <!-- Enlaces del header -->
+        <q-btn
+          flat
+          label="Quiénes Somos"
+          class="q-ml-md text-white"
+          @click="$router.push('/principal')"
+        />
+        <q-btn
+          flat
+          label="Contactos"
+          class="q-ml-md text-white"
+          @click="$router.push('/contactos')"
+        />
+        <q-btn
+          flat
+          label="Mis Compras"
+          class="q-ml-md text-white"
+          @click="$router.push('/historial-compras')"
+        />
+        <q-btn
+          flat
+          icon="logout"
+          label="Cerrar Sesión"
+          class="q-ml-md text-white"
+          @click="logout"
+        />
       </q-toolbar>
     </q-header>
     <q-page class="q-pa-md">
@@ -42,15 +69,22 @@
                     clickable
                     @click="verDetalle(inventario)"
                   >
+                    <q-item-section avatar>
+                      <q-avatar
+                        color="primary"
+                        text-color="white"
+                        :icon="getIconoTipo(inventario.detalle_inventario)"
+                      />
+                    </q-item-section>
                     <q-item-section>
                       <q-item-label class="text-weight-medium">
-                        Botiquín registrado el {{ formatDate(inventario.fecha_registro) }}
+                        Botiquín {{ getTiposUnicos(inventario.detalle_inventario).join(', ') }}
                       </q-item-label>
                       <q-item-label caption>
                         {{ inventario.detalle_inventario.length }} items registrados
                       </q-item-label>
                       <q-item-label caption class="q-mt-xs">
-                        Tipos: {{ getTiposUnicos(inventario.detalle_inventario).join(', ') }}
+                        ID: {{ inventario.id_registro }}
                       </q-item-label>
                     </q-item-section>
                     <q-item-section side>
@@ -94,7 +128,13 @@
 
           <q-card-section v-if="inventarioSeleccionado">
             <div class="text-subtitle2 q-mb-md">
-              Registrado el: {{ formatDate(inventarioSeleccionado.fecha_registro) }}
+              Inventario ID: {{ inventarioSeleccionado.id_registro }}
+            </div>
+            <div class="text-subtitle2 q-mb-md">
+              Tipo: {{ getTiposUnicos(inventarioSeleccionado.detalle_inventario).join(', ') }}
+            </div>
+            <div class="text-subtitle2 q-mb-md">
+              Total de items: {{ inventarioSeleccionado.detalle_inventario.length }}
             </div>
 
             <q-list dense>
@@ -127,9 +167,11 @@ import { ref, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
 import { useRouter } from 'vue-router'
 import { useBotiquinDB } from '../composables/useBotiquinDB.js'
+import { useAuth } from '../composables/useAuth.js'
 
 const $q = useQuasar()
 const router = useRouter()
+const { signOut } = useAuth()
 const { loading, error, historialInventarios, cargarHistorialInventarios, eliminarInventario } =
   useBotiquinDB()
 
@@ -141,15 +183,6 @@ onMounted(async () => {
   await cargarHistorialInventarios()
 })
 
-// Formatear fecha
-const formatDate = (dateString) => {
-  return new Date(dateString).toLocaleDateString('es-ES', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  })
-}
-
 // Obtener tipos únicos de un inventario
 const getTiposUnicos = (detalles) => {
   const tipos = [...new Set(detalles.map((d) => d.tipo_kit))]
@@ -160,9 +193,24 @@ const getTiposUnicos = (detalles) => {
       escolar: 'Escolar',
       industria: 'Industria',
       montania: 'Montaña',
+      montaña: 'Montaña', // Agregar ambas variantes
     }
     return nombres[tipo] || tipo
   })
+}
+
+// Obtener icono según el tipo de botiquín
+const getIconoTipo = (detalles) => {
+  const primerTipo = detalles[0]?.tipo_kit
+  const iconos = {
+    hogar: 'home',
+    oficina: 'business',
+    escolar: 'school',
+    industria: 'factory',
+    montania: 'landscape',
+    montaña: 'landscape',
+  }
+  return iconos[primerTipo] || 'medical_services'
 }
 
 // Ver detalle del inventario
@@ -174,6 +222,8 @@ const verDetalle = (inventario) => {
 // Editar inventario
 const editarInventario = (inventario) => {
   const tipoKit = inventario.detalle_inventario[0]?.tipo_kit
+  console.log('🔍 Tipo de kit detectado:', tipoKit)
+
   if (tipoKit) {
     // Redirigir al formulario correspondiente según el tipo
     const rutas = {
@@ -182,17 +232,35 @@ const editarInventario = (inventario) => {
       escolar: '/botiquin-frm-escolar',
       industria: '/botiquin-frm-industria',
       montania: '/botiquin-frm-montaña',
+      montaña: '/botiquin-frm-montaña', // Agregar ambas variantes
     }
 
     const ruta = rutas[tipoKit]
     if (ruta) {
-      router.push(ruta)
+      console.log('✅ Redirigiendo a:', ruta, 'con ID:', inventario.id_registro)
+      // Pasar el ID del inventario como parámetro de consulta para activar el modo edición
+      router.push({
+        path: ruta,
+        query: { edit: inventario.id_registro },
+      })
     } else {
+      console.error(
+        '❌ Tipo no encontrado en rutas:',
+        tipoKit,
+        'Rutas disponibles:',
+        Object.keys(rutas),
+      )
       $q.notify({
         type: 'warning',
-        message: 'Tipo de botiquín no reconocido',
+        message: `Tipo de botiquín no reconocido: ${tipoKit}`,
       })
     }
+  } else {
+    console.error('❌ No se encontró tipo_kit en el inventario')
+    $q.notify({
+      type: 'warning',
+      message: 'No se pudo determinar el tipo de botiquín',
+    })
   }
 }
 
@@ -219,6 +287,18 @@ const confirmarEliminar = (idRegistro) => {
       })
     }
   })
+}
+
+// Función para cerrar sesión
+const logout = async () => {
+  try {
+    const result = await signOut()
+    if (result.success) {
+      router.push('/')
+    }
+  } catch (error) {
+    console.error('Error al cerrar sesión:', error)
+  }
 }
 </script>
 

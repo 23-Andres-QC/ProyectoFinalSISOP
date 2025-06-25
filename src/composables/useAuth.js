@@ -10,6 +10,29 @@ export function useAuth() {
   // Estado de autenticación
   const isAuthenticated = computed(() => !!user.value)
 
+  // Inicializar estado del usuario al cargar el composable
+  const initializeAuth = async () => {
+    try {
+      const {
+        data: { session: currentSession },
+      } = await supabase.auth.getSession()
+      session.value = currentSession
+      user.value = currentSession?.user || null
+      console.log('🔄 Auth inicializado:', {
+        hasSession: !!currentSession,
+        hasUser: !!user.value,
+        userEmail: user.value?.email,
+      })
+    } catch (error) {
+      console.error('Error inicializando auth:', error)
+      session.value = null
+      user.value = null
+    }
+  }
+
+  // Inicializar inmediatamente
+  initializeAuth()
+
   // Registro de usuario
   const signUp = async (email, password, userData = {}) => {
     loading.value = true
@@ -212,5 +235,6 @@ export function useAuth() {
     getCurrentUser,
     getCurrentSession,
     initAuthListener,
+    initializeAuth,
   }
 }

@@ -4,13 +4,7 @@
       <q-toolbar>
         <q-toolbar-title class="text-white"> Minutos de Vida </q-toolbar-title>
 
-        <q-btn
-          flat
-          label="Quiénes Somos"
-          class="q-ml-md text-white"
-          @click="goTo('quienes-somos')"
-        />
-        <q-btn flat label="Ayuda" class="q-ml-md text-white" @click="goTo('ayuda')" />
+        <q-btn flat label="Quiénes Somos" class="q-ml-md text-white" @click="goTo('principal')" />
         <q-btn flat label="Contactos" class="q-ml-md text-white" @click="goTo('contactos')" />
 
         <!-- Enlaces específicos para usuarios autenticados -->
