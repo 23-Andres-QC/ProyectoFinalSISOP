@@ -8,11 +8,27 @@
           flat
           label="Quiénes Somos"
           class="q-ml-md text-white"
-          @click="goTo('quienes-somos')"
+          @click="$router.push('/principal')"
         />
-        <q-btn flat label="Ayuda" class="q-ml-md text-white" @click="goTo('ayuda')" />
-        <q-btn flat label="Contactos" class="q-ml-md text-white" @click="goTo('contactos')" />
-        <q-btn flat label="Más" class="q-ml-md text-white" @click="goTo('mas')" />
+        <q-btn
+          flat
+          label="Contactos"
+          class="q-ml-md text-white"
+          @click="$router.push('/contactos')"
+        />
+        <q-btn
+          flat
+          label="Mis Compras"
+          class="q-ml-md text-white"
+          @click="$router.push('/historial-compras')"
+        />
+        <q-btn
+          flat
+          icon="logout"
+          label="Cerrar Sesión"
+          class="q-ml-md text-white"
+          @click="logout"
+        />
       </q-toolbar>
     </q-header>
     <!-- Main Content -->
@@ -38,7 +54,10 @@
 
 <script setup>
 import { useRouter } from 'vue-router'
+import { useAuth } from '../composables/useAuth.js'
+
 const router = useRouter()
+const { signOut } = useAuth()
 
 const items = [
   {
@@ -55,6 +74,18 @@ const items = [
 
 function goTo(route) {
   router.push(route)
+}
+
+// Función para cerrar sesión
+const logout = async () => {
+  try {
+    const result = await signOut()
+    if (result.success) {
+      router.push('/')
+    }
+  } catch (error) {
+    console.error('Error al cerrar sesión:', error)
+  }
 }
 
 // Redirigir a esta página desde el login o donde corresponda

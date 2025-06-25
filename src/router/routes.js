@@ -7,11 +7,13 @@ const routes = [
     children: [
       {
         path: '',
+        name: 'auth',
         component: () => import('pages/AuthPage.vue'),
         beforeEnter: redirectIfAuthenticated,
       },
       {
         path: 'principal',
+        name: 'principal',
         component: () => import('pages/IndexPage.vue'),
         beforeEnter: requireAuth,
       },

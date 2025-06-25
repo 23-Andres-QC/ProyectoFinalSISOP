@@ -2,7 +2,44 @@
   <q-layout view="lHh Lpr lFf">
     <q-header elevated>
       <q-toolbar>
+        <q-btn
+          flat
+          round
+          dense
+          icon="arrow_back"
+          @click="$router.push('/botiquin-opciones')"
+          class="q-mr-sm"
+        >
+          <q-tooltip>Regresar</q-tooltip>
+        </q-btn>
         <q-toolbar-title class="text-white">Botiquín de Oficina</q-toolbar-title>
+
+        <!-- Enlaces del header -->
+        <q-btn
+          flat
+          label="Quiénes Somos"
+          class="q-ml-md text-white"
+          @click="$router.push('/principal')"
+        />
+        <q-btn
+          flat
+          label="Contactos"
+          class="q-ml-md text-white"
+          @click="$router.push('/contactos')"
+        />
+        <q-btn
+          flat
+          label="Mis Compras"
+          class="q-ml-md text-white"
+          @click="$router.push('/historial-compras')"
+        />
+        <q-btn
+          flat
+          icon="logout"
+          label="Cerrar Sesión"
+          class="q-ml-md text-white"
+          @click="logout"
+        />
       </q-toolbar>
     </q-header>
     <q-page class="q-pa-md">
@@ -11,7 +48,34 @@
         <div class="col-md-5 col-12">
           <q-card class="q-pa-md">
             <q-card-section>
-              <div class="text-h6 q-mb-md">Agregar Items al Botiquín</div>
+              <!-- Banner de información de edición -->
+              <div v-if="modoEdicion && inventarioEditando" class="q-mb-md">
+                <q-banner class="bg-orange-1 text-orange-8 rounded-borders">
+                  <template v-slot:avatar>
+                    <q-icon name="edit" color="orange" size="md" />
+                  </template>
+                  <div class="text-weight-medium">Editando Botiquín de Oficina</div>
+                  <div class="text-caption q-mt-xs">
+                    Inventario ID: {{ inventarioEditando.id_registro }}
+                  </div>
+                  <div class="q-mt-sm">
+                    <div class="text-body2 text-weight-medium q-mb-xs">Productos actuales:</div>
+                    <q-chip
+                      v-for="item in itemsAgregados"
+                      :key="item.id_item"
+                      :label="`${item.nombre} (${item.cantidad})`"
+                      color="orange-3"
+                      text-color="orange-8"
+                      size="sm"
+                      class="q-mr-xs q-mb-xs"
+                    />
+                  </div>
+                </q-banner>
+              </div>
+
+              <div class="text-h6 q-mb-md">
+                {{ modoEdicion ? 'Actualizar Items del Botiquín' : 'Agregar Items al Botiquín' }}
+              </div>
 
               <!-- Selector de item -->
               <q-select
@@ -52,15 +116,24 @@
               <!-- Botones de acción -->
               <div class="row q-gutter-sm">
                 <q-btn
-                  label="Registrar"
+                  :label="modoEdicion ? 'Actualizar' : 'Registrar'"
                   color="positive"
-                  icon="save"
+                  :icon="modoEdicion ? 'update' : 'save'"
                   @click="registrarBotiquin"
                   :loading="loading"
                   :disabled="itemsAgregados.length === 0"
                   class="col"
                 />
                 <q-btn
+                  v-if="modoEdicion"
+                  label="Cancelar"
+                  color="grey"
+                  icon="cancel"
+                  @click="cancelarEdicion"
+                  class="col"
+                />
+                <q-btn
+                  v-else
                   label="Comprar"
                   color="orange"
                   icon="shopping_cart"
@@ -77,6 +150,33 @@
                 @click="$router.push('/historial-botiquin')"
                 class="q-mt-sm full-width"
               />
+
+              <!-- Historial de inventarios -->
+              <div v-if="historialInventarios.length > 0" class="q-mt-md">
+                <q-separator class="q-my-md" />
+                <div class="text-h6 q-mb-md">Inventarios Anteriores</div>
+                <q-list separator>
+                  <q-item
+                    v-for="inventario in historialInventarios"
+                    :key="inventario.id_registro"
+                    clickable
+                    @click="cargarInventarioParaEditar(inventario)"
+                    class="q-pa-sm"
+                  >
+                    <q-item-section>
+                      <q-item-label class="text-weight-medium">
+                        {{ formatearFecha(inventario.fecha_creacion) }}
+                      </q-item-label>
+                      <q-item-label caption>
+                        {{ inventario.items?.length || 0 }} items
+                      </q-item-label>
+                    </q-item-section>
+                    <q-item-section side>
+                      <q-icon name="edit" color="primary" />
+                    </q-item-section>
+                  </q-item>
+                </q-list>
+              </div>
             </q-card-section>
           </q-card>
         </div>
@@ -127,20 +227,39 @@ import { useAuth } from '../composables/useAuth.js'
 
 const $q = useQuasar()
 const router = useRouter()
-const { user } = useAuth()
+const { signOut } = useAuth()
 const {
   loading,
   itemsDisponibles,
   cargarItemsDisponibles,
   registrarInventario,
+  actualizarInventario,
   crearOrdenCompra,
   verificarAutenticacion,
+  cargarHistorialInventarios,
+  obtenerInventarioPorId,
 } = useBotiquinDB()
 
 // Variables para el formulario
 const itemSeleccionado = ref(null)
 const cantidad = ref(1)
 const itemsAgregados = ref([])
+
+// Variables para historial y edición
+const historialInventarios = ref([])
+const modoEdicion = ref(false)
+const inventarioEditando = ref(null)
+
+// Función para formatear fechas
+const formatearFecha = (fecha) => {
+  return new Date(fecha).toLocaleDateString('es-ES', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
 
 // Cargar items disponibles al montar el componente
 onMounted(async () => {
@@ -183,6 +302,20 @@ onMounted(async () => {
       message: 'Error cargando items disponibles',
     })
   }
+
+  // Cargar historial de inventarios
+  try {
+    console.log('📋 Cargando historial de inventarios de oficina...')
+    const historial = await cargarHistorialInventarios('oficina')
+    historialInventarios.value = historial || []
+    console.log('✅ Historial cargado:', historialInventarios.value.length, 'inventarios')
+  } catch (error) {
+    console.error('❌ Error cargando historial:', error)
+    $q.notify({
+      type: 'negative',
+      message: 'Error cargando historial de inventarios',
+    })
+  }
 })
 
 // Agregar item a la lista
@@ -195,24 +328,30 @@ const agregarItem = () => {
     return
   }
 
-  // Verificar si el item ya existe
+  // Verificar si el item ya existe en la lista
   const itemExistente = itemsAgregados.value.find(
     (item) => item.id_item === itemSeleccionado.value.id_item,
   )
 
   if (itemExistente) {
-    itemExistente.cantidad += cantidad.value
-    console.log('Item actualizado:', itemExistente)
-  } else {
-    const nuevoItem = {
-      id_item: itemSeleccionado.value.id_item,
-      nombre: itemSeleccionado.value.nombre,
-      cantidad: cantidad.value,
-    }
-    console.log('Nuevo item agregado:', nuevoItem)
-    console.log('Item seleccionado completo:', itemSeleccionado.value)
-    itemsAgregados.value.push(nuevoItem)
+    $q.notify({
+      type: 'warning',
+      message: `${itemSeleccionado.value.nombre} ya está en la lista. Puedes modificar la cantidad directamente.`,
+    })
+    return
   }
+
+  // Agregar nuevo item
+  const nuevoItem = {
+    id_item: itemSeleccionado.value.id_item,
+    nombre: itemSeleccionado.value.nombre,
+    cantidad: cantidad.value,
+    tipo_kit: 'oficina', // Agregar tipo para actualización
+  }
+
+  console.log('Nuevo item agregado:', nuevoItem)
+  console.log('Item seleccionado completo:', itemSeleccionado.value)
+  itemsAgregados.value.push(nuevoItem)
 
   $q.notify({
     type: 'positive',
@@ -243,62 +382,168 @@ const registrarBotiquin = async () => {
     return
   }
 
-  if (!user.value) {
-    $q.notify({
-      type: 'warning',
-      message: 'Debes estar autenticado para registrar un botiquín',
-    })
-    return
-  }
-
-  // Confirmación antes de registrar
+  const accion = modoEdicion.value ? 'actualización' : 'registro'
   const confirmacion = confirm(
-    `¿Confirmas el registro del botiquín de oficina con ${itemsAgregados.value.length} items?`,
+    `¿Confirmas la ${accion} del botiquín de oficina con ${itemsAgregados.value.length} items?`,
   )
 
   if (!confirmacion) {
     $q.notify({
       type: 'info',
-      message: 'Registro cancelado',
+      message: `${accion.charAt(0).toUpperCase() + accion.slice(1)} cancelado`,
     })
     return
   }
 
   try {
-    console.log('Iniciando registro desde formulario OFICINA:', {
-      tipo: 'oficina',
-      items: itemsAgregados.value,
-      usuario: user.value.email,
-    })
+    if (modoEdicion.value) {
+      // Verificar que tenemos el ID del inventario
+      if (!inventarioEditando.value?.id_registro) {
+        console.error('❌ No se encontró ID del inventario para actualizar')
+        $q.notify({
+          type: 'negative',
+          message: 'Error: No se puede actualizar, falta el ID del inventario',
+        })
+        return
+      }
 
-    // Verificar que los items tengan la estructura correcta
-    itemsAgregados.value.forEach((item, index) => {
-      console.log(`Item ${index + 1}:`, {
-        id_item: item.id_item,
-        nombre: item.nombre,
-        cantidad: item.cantidad,
+      console.log('Iniciando actualización desde formulario OFICINA:', {
+        inventarioId: inventarioEditando.value.id_registro,
+        tipo: 'oficina',
+        items: itemsAgregados.value,
       })
-    })
 
-    await registrarInventario('oficina', itemsAgregados.value)
+      await actualizarInventario(inventarioEditando.value.id_registro, itemsAgregados.value)
 
-    $q.notify({
-      type: 'positive',
-      message: 'Botiquín de oficina registrado exitosamente',
-    })
+      $q.notify({
+        type: 'positive',
+        message: 'Botiquín de oficina actualizado exitosamente',
+      })
 
-    // Limpiar formulario
-    itemsAgregados.value = []
+      // Salir del modo edición
+      cancelarEdicion()
 
-    // Redirigir al historial
-    router.push('/historial-botiquin')
+      // Recargar historial
+      const historial = await cargarHistorialInventarios('oficina')
+      historialInventarios.value = historial || []
+    } else {
+      console.log('Iniciando registro desde formulario OFICINA:', {
+        tipo: 'oficina',
+        items: itemsAgregados.value,
+      })
+
+      // Verificar que los items tengan la estructura correcta
+      itemsAgregados.value.forEach((item, index) => {
+        console.log(`Item ${index + 1}:`, {
+          id_item: item.id_item,
+          nombre: item.nombre,
+          cantidad: item.cantidad,
+        })
+      })
+
+      await registrarInventario('oficina', itemsAgregados.value)
+
+      $q.notify({
+        type: 'positive',
+        message: 'Botiquín de oficina registrado exitosamente',
+      })
+
+      // Limpiar formulario
+      itemsAgregados.value = []
+
+      // Recargar historial
+      const historial = await cargarHistorialInventarios('oficina')
+      historialInventarios.value = historial || []
+
+      // Redirigir al historial
+      router.push('/historial-botiquin')
+    }
   } catch (err) {
-    console.error('Error en el formulario OFICINA:', err)
+    console.error(`Error en el formulario OFICINA (${accion}):`, err)
     $q.notify({
       type: 'negative',
-      message: `Error al registrar el botiquín: ${err.message}`,
+      message: `Error al ${modoEdicion.value ? 'actualizar' : 'registrar'} el botiquín: ${err.message}`,
     })
   }
+}
+
+// Funciones para modo edición
+const cargarInventarioParaEditar = async (inventario) => {
+  console.log('📝 Cargando inventario para edición:', inventario)
+  console.log('📋 ID del inventario:', inventario.id_registro)
+
+  try {
+    modoEdicion.value = true
+    inventarioEditando.value = inventario
+
+    // Limpiar items actuales
+    itemsAgregados.value = []
+
+    let itemsParaCargar = []
+
+    // Primero intentar usar los datos que vienen en el parámetro
+    if (inventario.detalle_inventario && inventario.detalle_inventario.length > 0) {
+      console.log('📦 Usando detalles del inventario directo')
+      itemsParaCargar = inventario.detalle_inventario.map((detalle) => ({
+        id_item: detalle.id_item,
+        nombre: detalle.nombre_item || detalle.nombre,
+        cantidad: detalle.cantidad,
+        tipo_kit: 'oficina', // Agregar tipo para actualización
+      }))
+    }
+    // Si no hay detalles o faltan nombres, obtener del servidor
+    else if (inventario.id_registro) {
+      console.log('🔄 Obteniendo inventario completo del servidor')
+      const inventarioCompleto = await obtenerInventarioPorId(inventario.id_registro)
+
+      if (inventarioCompleto && inventarioCompleto.detalle_inventario) {
+        itemsParaCargar = inventarioCompleto.detalle_inventario.map((detalle) => ({
+          id_item: detalle.id_item,
+          nombre: detalle.nombre_item || detalle.items?.nombre || 'Item sin nombre',
+          cantidad: detalle.cantidad,
+          tipo_kit: 'oficina', // Agregar tipo para actualización
+        }))
+      }
+    }
+
+    // Cargar los items
+    if (itemsParaCargar.length > 0) {
+      itemsAgregados.value = itemsParaCargar
+      console.log('✅ Items cargados para edición:', itemsAgregados.value)
+
+      $q.notify({
+        type: 'positive',
+        message: `Inventario cargado para edición. ${itemsAgregados.value.length} items cargados.`,
+      })
+    } else {
+      console.warn('⚠️ No se encontraron items para cargar')
+      $q.notify({
+        type: 'warning',
+        message: 'No se encontraron items en el inventario seleccionado',
+      })
+    }
+  } catch (error) {
+    console.error('❌ Error al cargar inventario para edición:', error)
+    $q.notify({
+      type: 'negative',
+      message: 'Error al cargar el inventario para edición',
+    })
+  }
+}
+
+const cancelarEdicion = () => {
+  modoEdicion.value = false
+  inventarioEditando.value = null
+  itemsAgregados.value = []
+  itemSeleccionado.value = null
+  cantidad.value = 1
+
+  $q.notify({
+    type: 'info',
+    message: 'Edición cancelada',
+  })
+
+  console.log('🔄 Modo edición cancelado')
 }
 
 // Ir a compras
@@ -311,18 +556,52 @@ const irACompras = async () => {
     return
   }
 
+  // Confirmación antes de crear la orden
+  const confirmacion = confirm(
+    `¿Confirmas la creación de la orden de compra con ${itemsAgregados.value.length} items?`,
+  )
+
+  if (!confirmacion) {
+    $q.notify({
+      type: 'info',
+      message: 'Orden de compra cancelada',
+    })
+    return
+  }
+
   try {
+    console.log('🛒 Creando orden de compra con items:', itemsAgregados.value)
     await crearOrdenCompra(itemsAgregados.value, 'oficina')
+
     $q.notify({
       type: 'positive',
       message: 'Orden de compra creada exitosamente',
     })
+
+    // Limpiar formulario
+    itemsAgregados.value = []
+
+    console.log('🔄 Redirigiendo a historial de compras...')
+    // Redirigir a la página de compras/historial de órdenes
+    router.push('/historial-compras')
   } catch (err) {
     console.error('Error al crear orden:', err)
     $q.notify({
       type: 'negative',
-      message: 'Error al crear la orden de compra',
+      message: `Error al crear la orden de compra: ${err.message}`,
     })
+  }
+}
+
+// Función para cerrar sesión
+const logout = async () => {
+  try {
+    const result = await signOut()
+    if (result.success) {
+      router.push('/')
+    }
+  } catch (error) {
+    console.error('Error al cerrar sesión:', error)
   }
 }
 </script>
