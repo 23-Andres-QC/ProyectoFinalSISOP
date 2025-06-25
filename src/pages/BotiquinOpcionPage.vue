@@ -5,33 +5,13 @@
         <q-toolbar-title class="text-white">Botiquín - Opciones</q-toolbar-title>
 
         <!-- Enlaces del header -->
-        <q-btn
-          flat
-          label="Quiénes Somos"
-          class="q-ml-md text-white"
-          @click="$router.push('/principal')"
-        />
-        <q-btn
-          flat
-          label="Contactos"
-          class="q-ml-md text-white"
-          @click="$router.push('/contactos')"
-        />
+        <q-btn flat label="Inicio" class="q-ml-md text-white" @click="$router.push('/principal')" />
         <q-btn
           flat
           label="Mis Compras"
           class="q-ml-md text-white"
           @click="$router.push('/historial-compras')"
         />
-        <q-btn
-          flat
-          icon="medical_services"
-          label="Ir a Botiquín"
-          @click="$router.push('/botiquin')"
-          class="q-ml-md text-white"
-        >
-          <q-tooltip>Ir a página principal de botiquín</q-tooltip>
-        </q-btn>
         <q-btn
           flat
           icon="logout"

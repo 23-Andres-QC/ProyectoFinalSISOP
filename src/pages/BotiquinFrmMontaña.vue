@@ -15,23 +15,25 @@
         <q-toolbar-title class="text-white">Botiquín de Montaña</q-toolbar-title>
 
         <!-- Enlaces del header -->
+        <q-btn flat label="Inicio" class="q-ml-md text-white" @click="$router.push('/principal')" />
         <q-btn
           flat
-          label="Quiénes Somos"
+          label="Crear Botiquín"
           class="q-ml-md text-white"
-          @click="$router.push('/principal')"
-        />
-        <q-btn
-          flat
-          label="Contactos"
-          class="q-ml-md text-white"
-          @click="$router.push('/contactos')"
+          @click="$router.push('/botiquin-opciones')"
         />
         <q-btn
           flat
           label="Mis Compras"
           class="q-ml-md text-white"
           @click="$router.push('/historial-compras')"
+        />
+        <q-btn
+          flat
+          icon="logout"
+          label="Cerrar Sesión"
+          class="q-ml-md text-white"
+          @click="logout"
         />
         <q-btn
           flat
@@ -390,19 +392,20 @@ const registrarBotiquin = async () => {
   }
 
   const accion = modoEdicion.value ? 'actualización' : 'registro'
-  const confirmacion = confirm(
-    `¿Confirmas la ${accion} del botiquín de montaña con ${itemsAgregados.value.length} items?`,
-  )
-
-  if (!confirmacion) {
-    $q.notify({
-      type: 'info',
-      message: `${accion.charAt(0).toUpperCase() + accion.slice(1)} cancelado`,
-    })
-    return
-  }
 
   try {
+    await $q.dialog({
+      title: 'Confirmar Registro',
+      message: `¿Confirmas la ${accion} del botiquín de montaña con ${itemsAgregados.value.length} items?`,
+      cancel: true,
+      persistent: true,
+      ok: {
+        label: 'Sí, continuar',
+        color: 'primary',
+      },
+    })
+
+    // Si llegamos aquí, el usuario confirmó
     if (modoEdicion.value) {
       // Verificar que tenemos el ID del inventario
       if (!inventarioEditando.value?.id_registro) {
@@ -466,10 +469,23 @@ const registrarBotiquin = async () => {
       router.push('/historial-botiquin')
     }
   } catch (err) {
+    if (err === false || err === undefined) {
+      // Usuario canceló el diálogo
+      $q.notify({
+        type: 'info',
+        message: `${accion.charAt(0).toUpperCase() + accion.slice(1)} cancelado`,
+        position: 'center',
+        timeout: 2000,
+      })
+      return
+    }
+
     console.error(`Error en el formulario MONTAÑA (${accion}):`, err)
     $q.notify({
       type: 'negative',
       message: `Error al ${modoEdicion.value ? 'actualizar' : 'registrar'} el botiquín: ${err.message}`,
+      position: 'center',
+      timeout: 3000,
     })
   }
 }

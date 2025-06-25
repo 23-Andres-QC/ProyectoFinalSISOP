@@ -95,8 +95,8 @@ export default {
 .botones-imagenes {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 30px;
-  padding: 30px;
+  gap: 20px;
+  padding: 20px;
   width: 100%;
 }
 
@@ -114,8 +114,8 @@ export default {
 }
 
 .img-boton {
-  width: 150px;
-  height: 150px;
+  width: 100px;
+  height: 100px;
   object-fit: cover;
   border-radius: 10px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
@@ -126,8 +126,8 @@ export default {
 }
 
 .nombre {
-  margin-top: 10px;
-  font-size: 18px;
+  margin-top: 8px;
+  font-size: 14px;
   text-align: center;
 }
 </style>
