@@ -2,14 +2,14 @@
   <q-layout view="lHh Lpr lFf">
     <q-header elevated>
       <q-toolbar>
-        <q-toolbar-title class="text-white">Formulario Botiquín - Hogar</q-toolbar-title>
+        <q-toolbar-title class="text-white">Formulario Botiquín - Montaña</q-toolbar-title>
       </q-toolbar>
     </q-header>
     <q-page class="flex flex-center page-scroll">
       <q-form @submit.prevent="onSubmit" class="q-gutter-md form-grid">
         <div>
           <div class="grid-container">
-            <div v-for="(item, idx) in hogarItems" :key="idx" class="grid-item">
+            <div v-for="(item, idx) in montañaItems" :key="idx" class="grid-item">
               <q-input
                 v-model.number="cantidades[item]"
                 :label="item"
@@ -44,11 +44,7 @@
           :loading="loading"
         />
       </q-form>
-      <div
-        v-if="mostrarHistorial"
-        class="q-mt-lg historial-section"
-        style="max-width: 700px; width: 100%"
-      >
+      <div v-if="mostrarHistorial" class="q-mt-lg" style="max-width: 700px; width: 100%">
         <q-card class="bg-grey-1 shadow-3">
           <q-card-section>
             <div class="text-h6 text-primary flex items-center q-mb-md">
@@ -110,13 +106,11 @@
 <script setup>
 import { reactive, ref, onMounted, watch } from 'vue'
 import { useQuasar } from 'quasar'
-import { useRouter } from 'vue-router'
 import { useBotiquin } from '../composables/useBotiquin.js'
 import { useAuth } from '../composables/useAuth.js'
 import OrdenCompraModal from '../components/OrdenCompraModal.vue'
 
 const $q = useQuasar()
-const router = useRouter()
 const { user } = useAuth()
 const { registerInventory, getUserInventoryHistory, getItemPrices, createPurchaseOrder } =
   useBotiquin()
@@ -128,25 +122,35 @@ const ordenCompraItems = ref([])
 const totalCompra = ref(0)
 const loading = ref(false)
 
-const hogarItems = [
-  'Alcohol 70%',
-  'Agua Oxigenada',
-  'Gasas Esteriles',
-  'Vendas elasticas',
-  'Curitas',
-  'Anticepticos',
-  'termómetro',
-  'Paracetamol',
-  'Tijeras con punta redondeada',
-  'Pinzas metálicas',
-  'Guantes descartables',
-  'Gel para quemaduras',
-  'Parches adhesivos',
-  'Cinta médica',
+const montañaItems = [
+  'Gasas estériles de diferentes tamaños',
+  'Vendas elásticas autoadhesivas',
+  'Curitas resistentes al agua',
+  'Alcohol antiséptico 70%',
+  'Yodo para desinfección',
+  'Analgésicos (ibuprofeno, paracetamol)',
+  'Antiinflamatorios',
+  'Antihistamínicos para alergias',
+  'Crema protectora solar factor 50+',
+  'Crema para quemaduras',
+  'Bálsamo para labios con protector solar',
+  'Termómetro resistente',
+  'Manta térmica de emergencia',
+  'Silbato de emergencia',
+  'Linterna pequeña con pilas extra',
+  'Tijeras multiuso',
+  'Pinzas de acero inoxidable',
+  'Guantes de nitrilo resistentes',
+  'Mascarillas contra polvo',
+  'Bolsas de hielo instantáneo',
+  'Suero fisiológico en ampollas',
+  'Jeringa desechable para irrigación',
+  'Cinta adhesiva resistente',
+  'Manual de primeros auxilios de montaña',
 ]
 
 const cantidades = reactive({})
-hogarItems.forEach((item) => (cantidades[item] = 0))
+montañaItems.forEach((item) => (cantidades[item] = 0))
 
 const formatDate = (dateString) => {
   return new Date(dateString).toLocaleString()
@@ -176,7 +180,7 @@ async function onSubmit() {
       return
     }
 
-    await registerInventory('hogar', items)
+    await registerInventory('montaña', items)
 
     $q.notify({
       type: 'positive',
@@ -184,19 +188,10 @@ async function onSubmit() {
     })
 
     // Limpiar cantidades
-    hogarItems.forEach((item) => (cantidades[item] = 0))
+    montañaItems.forEach((item) => (cantidades[item] = 0))
 
-    // Recargar historial y mostrarlo
+    // Recargar historial
     await loadHistorial()
-    mostrarHistorial.value = true
-
-    // Scroll al historial
-    setTimeout(() => {
-      const historialElement = document.querySelector('.historial-section')
-      if (historialElement) {
-        historialElement.scrollIntoView({ behavior: 'smooth' })
-      }
-    }, 100)
   } catch (error) {
     console.error('Error al guardar inventario:', error)
     $q.notify({
@@ -233,20 +228,19 @@ async function generarOrdenCompra() {
     }
 
     // Obtener precios
-    const prices = await getItemPrices('hogar')
+    const prices = await getItemPrices(items.map((item) => item.item_name))
 
     // Combinar items con precios
     const itemsWithPrices = items.map((item) => {
-      const priceInfo = prices.find((p) => p.item_name === item.item_name)
-      const unitPrice = priceInfo?.price || 10 // Precio por defecto
+      const price = prices.find((p) => p.item_name === item.item_name)?.price || 0
       return {
         ...item,
-        unit_price: unitPrice,
-        total_price: item.quantity * unitPrice,
+        price,
+        total: item.quantity * price,
       }
     })
 
-    const total = itemsWithPrices.reduce((sum, item) => sum + item.total_price, 0)
+    const total = itemsWithPrices.reduce((sum, item) => sum + item.total, 0)
 
     ordenCompraItems.value = itemsWithPrices
     totalCompra.value = total
@@ -266,12 +260,11 @@ async function confirmarOrden(contactInfo) {
   loading.value = true
   try {
     const orderData = {
-      type: 'hogar',
+      user_id: user.value.id,
+      type: 'montaña',
       items: ordenCompraItems.value,
-      total_amount: totalCompra.value,
-      contact_name: contactInfo.name,
-      contact_phone: contactInfo.phone,
-      contact_email: contactInfo.email,
+      total: totalCompra.value,
+      contact_info: contactInfo,
     }
 
     await createPurchaseOrder(orderData)
@@ -284,12 +277,7 @@ async function confirmarOrden(contactInfo) {
     showOrderModal.value = false
 
     // Limpiar cantidades
-    hogarItems.forEach((item) => (cantidades[item] = 0))
-
-    // Redirigir al historial de compras
-    setTimeout(() => {
-      router.push('/historial-compras')
-    }, 1000)
+    montañaItems.forEach((item) => (cantidades[item] = 0))
   } catch (error) {
     console.error('Error al confirmar orden:', error)
     $q.notify({
@@ -305,7 +293,7 @@ async function loadHistorial() {
   if (!user.value) return
 
   try {
-    historial.value = await getUserInventoryHistory('hogar')
+    historial.value = await getUserInventoryHistory('montaña')
   } catch (error) {
     console.error('Error al cargar historial:', error)
     $q.notify({
