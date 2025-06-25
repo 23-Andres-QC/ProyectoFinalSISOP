@@ -3,17 +3,29 @@
     <!-- Header -->
     <q-header elevated>
       <q-toolbar>
+        <q-btn flat round dense icon="arrow_back" @click="$router.go(-1)" />
         <q-toolbar-title class="text-white"> Minutos de Vida </q-toolbar-title>
 
+        <q-btn flat label="Inicio" class="q-ml-md text-white" @click="$router.push('/principal')" />
         <q-btn
           flat
-          label="Quiénes Somos"
+          label="Crear Botiquín"
           class="q-ml-md text-white"
-          @click="goTo('quienes-somos')"
+          @click="$router.push('/botiquin-opciones')"
         />
-        <q-btn flat label="Ayuda" class="q-ml-md text-white" @click="goTo('ayuda')" />
-        <q-btn flat label="Contactos" class="q-ml-md text-white" @click="goTo('contactos')" />
-        <q-btn flat label="Más" class="q-ml-md text-white" @click="goTo('mas')" />
+        <q-btn
+          flat
+          label="Mis Compras"
+          class="q-ml-md text-white"
+          @click="$router.push('/historial-compras')"
+        />
+        <q-btn
+          flat
+          icon="logout"
+          label="Cerrar Sesión"
+          class="q-ml-md text-white"
+          @click="logout"
+        />
       </q-toolbar>
     </q-header>
 
@@ -53,6 +65,7 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { useAuth } from '../composables/useAuth.js'
 import Hogar from 'src/components/RecomendacionTipo01/Hogar.vue'
 import Industria from 'src/components/RecomendacionTipo04/Industria.vue'
 import Montaña from 'src/components/RecomendacionTipo05/Montaña.vue'
@@ -61,6 +74,7 @@ import Escolar from 'src/components/RecomendacionTipo03/Escolar.vue'
 import RecomendacionPanel from 'src/components/Recomendaciones/Recomendacion.vue'
 
 const router = useRouter()
+const { signOut } = useAuth()
 const activeComponent = ref(null)
 const showRecomendacionPanel = ref(false)
 const selectedAccident = ref('')
@@ -139,36 +153,31 @@ function closeComponent() {
   activeComponent.value = null
 }
 
-function goTo(routeName) {
-  router.push({ name: routeName })
+// Función para cerrar sesión
+const logout = async () => {
+  try {
+    const result = await signOut()
+    if (result.success) {
+      router.push('/')
+    }
+  } catch (error) {
+    console.error('Error al cerrar sesión:', error)
+  }
 }
 </script>
 
 <style scoped>
-.page-container {
+.page-container centered {
   display: flex;
   flex-direction: column;
-  height: 100vh;
-}
-
-.main-content {
-  flex: 1;
-  display: flex;
   justify-content: center;
   align-items: center;
-  background: url('./ImagenesTipos/background.avif') no-repeat center center;
-  background-size: cover;
+  top: 50px;
 }
-
-.background-image.expanded {
-  width: 100%;
-  height: 100%;
-}
-
 .button-container {
   display: flex;
   flex-wrap: wrap;
-  gap: 30px; /* Adjust spacing for larger buttons */
+  gap: 20px; /* Reduced spacing for smaller buttons */
   justify-content: center; /* Center buttons horizontally */
   align-items: center; /* Center buttons vertically */
 }
@@ -176,11 +185,11 @@ function goTo(routeName) {
 .row {
   display: flex;
   justify-content: center;
-  margin-bottom: 20px;
+  margin-bottom: 15px;
 }
 
 .button-image {
-  margin: 20px;
+  margin: 10px;
   border: 2px solid #007bff;
   border-radius: 10px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
@@ -202,8 +211,8 @@ function goTo(routeName) {
 }
 
 .img-button {
-  width: 250px;
-  height: 250px;
+  width: 150px;
+  height: 150px;
   object-fit: cover;
   border-radius: 10px;
   transition: transform 0.3s ease;
@@ -222,28 +231,9 @@ function goTo(routeName) {
   margin-top: 10px;
 }
 
-.footer {
-  width: 100%;
-  background-color: #002366;
-  color: white;
-  text-align: center;
-  padding: 10px;
-  position: fixed;
-  bottom: 0;
-  z-index: 1000;
-}
-
 .fixed-footer {
   position: fixed;
   bottom: 0;
-}
-
-.centered {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  flex-direction: column;
-  height: 100%;
 }
 
 .components-section {
@@ -270,19 +260,5 @@ function goTo(routeName) {
   justify-content: center;
   align-items: center;
   z-index: 1000;
-}
-
-/* Center the Recomendacion component more precisely */
-.recomendacion-panel {
-  width: 40%;
-  height: 40%;
-  background-color: white;
-  border-radius: 10px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  padding: 30px;
 }
 </style>

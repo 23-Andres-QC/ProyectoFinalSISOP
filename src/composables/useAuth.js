@@ -10,6 +10,29 @@ export function useAuth() {
   // Estado de autenticación
   const isAuthenticated = computed(() => !!user.value)
 
+  // Inicializar estado del usuario al cargar el composable
+  const initializeAuth = async () => {
+    try {
+      const {
+        data: { session: currentSession },
+      } = await supabase.auth.getSession()
+      session.value = currentSession
+      user.value = currentSession?.user || null
+      console.log('🔄 Auth inicializado:', {
+        hasSession: !!currentSession,
+        hasUser: !!user.value,
+        userEmail: user.value?.email,
+      })
+    } catch (error) {
+      console.error('Error inicializando auth:', error)
+      session.value = null
+      user.value = null
+    }
+  }
+
+  // Inicializar inmediatamente
+  initializeAuth()
+
   // Registro de usuario
   const signUp = async (email, password, userData = {}) => {
     loading.value = true
@@ -85,12 +108,24 @@ export function useAuth() {
 
       if (signOutError) throw signOutError
 
+      // Limpiar estado local
       user.value = null
       session.value = null
 
+      // Emitir evento personalizado para notificar el cierre de sesión
+      window.dispatchEvent(new CustomEvent('userLoggedOut'))
+
+      // Limpiar almacenamiento local (excepto las recomendaciones que se limpiarán por el evento)
+      const recomendaciones = localStorage.getItem('recomendacionesActuales')
+      localStorage.clear()
+      sessionStorage.clear()
+
+      // Las recomendaciones se limpiarán por el evento userLoggedOut
+      console.log('✅ Sesión cerrada y datos limpiados')
       return { success: true }
     } catch (err) {
       error.value = err.message
+      console.error('❌ Error al cerrar sesión:', err)
       return { success: false, error: err.message }
     } finally {
       loading.value = false
@@ -212,5 +247,6 @@ export function useAuth() {
     getCurrentUser,
     getCurrentSession,
     initAuthListener,
+    initializeAuth,
   }
 }

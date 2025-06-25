@@ -3,6 +3,22 @@
     <q-header elevated>
       <q-toolbar>
         <q-toolbar-title class="text-white">Botiquín - Opciones</q-toolbar-title>
+
+        <!-- Enlaces del header -->
+        <q-btn flat label="Inicio" class="q-ml-md text-white" @click="$router.push('/principal')" />
+        <q-btn
+          flat
+          label="Mis Compras"
+          class="q-ml-md text-white"
+          @click="$router.push('/historial-compras')"
+        />
+        <q-btn
+          flat
+          icon="logout"
+          label="Cerrar Sesión"
+          class="q-ml-md text-white"
+          @click="logout"
+        />
       </q-toolbar>
     </q-header>
     <q-page class="flex flex-center">
@@ -20,7 +36,10 @@
 
 <script setup>
 import { useRouter } from 'vue-router'
+import { useAuth } from '../composables/useAuth.js'
+
 const router = useRouter()
+const { signOut } = useAuth()
 
 const items = [
   {
@@ -58,6 +77,18 @@ function goToFormulario(tipo) {
     router.push({ path: '/botiquin-frm-montaña' })
   } else {
     router.push({ path: `/botiquin-frm-${tipo.toLowerCase()}` })
+  }
+}
+
+// Función para cerrar sesión
+const logout = async () => {
+  try {
+    const result = await signOut()
+    if (result.success) {
+      router.push('/')
+    }
+  } catch (error) {
+    console.error('Error al cerrar sesión:', error)
   }
 }
 </script>

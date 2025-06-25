@@ -1,4 +1,17 @@
 <template>
+  <!--
+    Panel de Recomendaciones con ChatBot contextual
+
+    Funcionalidades implementadas:
+    - Generación de recomendaciones basadas en tipo de accidente y botiquín disponible
+    - Almacenamiento interno de recomendaciones (no en archivos)
+    - Limpieza automática de recomendaciones al cerrar sesión o cambiar de página
+    - Integración con ChatBot contextual que usa las recomendaciones como base
+    - Selección de botiquín desde el historial del usuario
+    - Formato visual mejorado para las recomendaciones
+    - Persistencia temporal en localStorage
+    - Métodos para obtener, guardar y limpiar recomendaciones
+  -->
   <div class="recommendation-container">
     <!-- Close button -->
     <button class="close-button" @click="$emit('close')">&times;</button>
@@ -16,18 +29,35 @@
     >
       <!-- Input fields for accident and botiquin -->
       <div class="input-section">
-        <label for="accident">¿Qué accidente tienes?</label>
-        <textarea
-          id="accident"
-          v-model="accidentDescription"
-          placeholder="Describe el accidente"
-        ></textarea>
+        <label for="accident">Tipo de accidente:</label>
+        <div class="accident-display">{{ accident || 'No especificado' }}</div>
 
-        <label for="botiquin">¿Qué tienes en tu botiquín?</label>
+        <label for="botiquin-selector">Seleccionar botiquín del historial:</label>
+        <select
+          id="botiquin-selector"
+          v-model="botiquinSeleccionado"
+          @change="actualizarBotiquinSeleccionado"
+          class="botiquin-selector"
+        >
+          <option value="">Seleccionar botiquín...</option>
+          <option
+            v-for="botiquin in botiquinesDisponibles"
+            :key="botiquin.id_registro"
+            :value="botiquin"
+          >
+            Botiquín {{ botiquin.tipos.join(', ') }} - {{ botiquin.fecha }} ({{
+              botiquin.totalItems
+            }}
+            items)
+          </option>
+        </select>
+
+        <label for="botiquin">Items en el botiquín seleccionado:</label>
         <textarea
           id="botiquin"
           v-model="botiquinItems"
-          placeholder="Lista los elementos de tu botiquín"
+          placeholder="Selecciona un botiquín del historial o describe manualmente los elementos"
+          readonly
         ></textarea>
 
         <button @click="getRecommendations" :disabled="isLoading">
@@ -53,12 +83,19 @@
     />
 
     <!-- Chatbot component -->
-    <ChatBot v-if="isChatbotOpen" @chatbotClosed="handleChatbotClosed" />
+    <ChatBot
+      v-if="isChatbotOpen"
+      ref="chatbot"
+      @chatbotClosed="handleChatbotClosed"
+      :recomendacionesContext="recomendacionesGuardadas"
+    />
   </div>
 </template>
 
 <script>
 import ChatBot from './ChatBot.vue'
+import { useBotiquinDB } from '../../composables/useBotiquinDB.js'
+import { useAuth } from '../../composables/useAuth.js'
 
 export default {
   name: 'RecomendacionPanel',
@@ -71,6 +108,11 @@ export default {
   components: {
     ChatBot,
   },
+  setup() {
+    const { historialInventarios, cargarHistorialInventarios } = useBotiquinDB()
+    const { user } = useAuth()
+    return { historialInventarios, cargarHistorialInventarios, user }
+  },
   data() {
     return {
       isChatbotOpen: false, // Chatbot is hidden by default
@@ -78,9 +120,210 @@ export default {
       accidentDescription: this.accident,
       botiquinItems: '',
       steps: [],
+      botiquinSeleccionado: null, // Para el dropdown de selección de botiquín
+      botiquinesDisponibles: [], // Lista de botiquines del historial
+      userWatcher: null, // Watcher para detectar cambios en la sesión
+      recomendacionesGuardadas: null, // Almacenar las recomendaciones aquí
     }
   },
+  async mounted() {
+    // Cargar historial de botiquines al montar el componente
+    await this.cargarBotiquines()
+
+    // Cargar recomendaciones guardadas si existen
+    this.cargarRecomendacionesGuardadas()
+
+    // Configurar watcher para detectar cierre de sesión
+    this.configurarWatcherSesion()
+
+    // Configurar listener para cambios de página
+    this.configurarListenerCambioPagina()
+  },
+  beforeUnmount() {
+    // Limpiar watcher al desmontar componente
+    if (this.userWatcher) {
+      this.userWatcher()
+    }
+
+    // Borrar recomendaciones al cambiar de página
+    this.vaciarRecomendaciones()
+    console.log('Componente desmontado - recomendaciones borradas')
+  },
   methods: {
+    async cargarBotiquines() {
+      try {
+        await this.cargarHistorialInventarios()
+
+        // Procesar historial para el dropdown
+        this.botiquinesDisponibles = this.historialInventarios.map((inventario) => {
+          const tipos = this.getTiposUnicos(inventario.detalle_inventario)
+          const fecha = this.formatearFecha(inventario.fecha_registro)
+          const totalItems = inventario.detalle_inventario.length
+
+          return {
+            id_registro: inventario.id_registro,
+            tipos,
+            fecha,
+            totalItems,
+            inventario,
+            items: inventario.detalle_inventario,
+          }
+        })
+
+        console.log('Botiquines disponibles:', this.botiquinesDisponibles)
+      } catch (error) {
+        console.error('Error cargando botiquines:', error)
+      }
+    },
+
+    getTiposUnicos(detalles) {
+      const tipos = [...new Set(detalles.map((d) => d.tipo_kit))]
+      return tipos.map((tipo) => {
+        const nombres = {
+          hogar: 'Hogar',
+          oficina: 'Oficina',
+          escolar: 'Escolar',
+          industria: 'Industria',
+          montania: 'Montaña',
+          montaña: 'Montaña',
+        }
+        return nombres[tipo] || tipo
+      })
+    },
+
+    formatearFecha(fecha) {
+      return new Date(fecha).toLocaleDateString('es-ES', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+      })
+    },
+
+    actualizarBotiquinSeleccionado() {
+      if (this.botiquinSeleccionado) {
+        // Convertir items del botiquín a texto
+        const itemsTexto = this.botiquinSeleccionado.items
+          .map((item) => `${item.nombre_item} (cantidad: ${item.cantidad})`)
+          .join(', ')
+
+        this.botiquinItems = itemsTexto
+        console.log('Botiquín seleccionado:', itemsTexto)
+      } else {
+        this.botiquinItems = ''
+      }
+    },
+
+    guardarRecomendaciones(respuesta) {
+      // Crear objeto con toda la información de las recomendaciones
+      const recomendacionesData = {
+        accidente: this.accident,
+        botiquinItems: this.botiquinItems,
+        fecha: new Date().toLocaleString('es-ES'),
+        respuestaHTML: respuesta,
+        respuestaTexto: respuesta.replace(/<[^>]*>/g, ''),
+        timestamp: Date.now(),
+      }
+
+      // Guardar en la variable del componente
+      this.recomendacionesGuardadas = recomendacionesData
+
+      // También guardarlo en localStorage para persistencia
+      localStorage.setItem('recomendacionesActuales', JSON.stringify(recomendacionesData))
+
+      console.log('Recomendaciones guardadas:', recomendacionesData)
+    },
+
+    // Método para vaciar las recomendaciones cuando se cierre sesión
+    vaciarRecomendaciones() {
+      try {
+        // Limpiar variable del componente
+        this.recomendacionesGuardadas = null
+
+        // Limpiar localStorage
+        localStorage.removeItem('recomendacionesActuales')
+
+        // Limpiar contexto del ChatBot si está abierto
+        if (this.$refs.chatbot) {
+          this.$refs.chatbot.clearContext()
+        }
+
+        console.log('Recomendaciones vaciadas al cerrar sesión')
+      } catch (error) {
+        console.error('Error vaciando recomendaciones:', error)
+      }
+    },
+
+    // Método para obtener las recomendaciones guardadas
+    obtenerRecomendaciones() {
+      return this.recomendacionesGuardadas
+    },
+
+    // Método para cargar recomendaciones desde localStorage al iniciar
+    cargarRecomendacionesGuardadas() {
+      try {
+        const data = localStorage.getItem('recomendacionesActuales')
+        if (data) {
+          this.recomendacionesGuardadas = JSON.parse(data)
+          console.log('Recomendaciones cargadas desde localStorage:', this.recomendacionesGuardadas)
+        }
+      } catch (error) {
+        console.error('Error cargando recomendaciones:', error)
+      }
+    },
+
+    // Configurar watcher para detectar cambios en la sesión del usuario
+    configurarWatcherSesion() {
+      // Usando Vue's watch para observar cambios en el usuario
+      this.userWatcher = this.$watch(
+        'user',
+        (newUser, oldUser) => {
+          // Si el usuario se desloguea (pasa de tener usuario a no tenerlo)
+          if (oldUser && !newUser) {
+            console.log('Sesión cerrada, vaciando recomendaciones')
+            this.vaciarRecomendaciones()
+          }
+        },
+        { immediate: false },
+      )
+
+      // Escuchar eventos personalizados de logout
+      window.addEventListener('userLoggedOut', () => {
+        console.log('Evento de logout detectado, vaciando recomendaciones')
+        this.vaciarRecomendaciones()
+      })
+    },
+
+    // Configurar listener para detectar cambios de página
+    configurarListenerCambioPagina() {
+      // Detectar cuando se navega a otra página
+      window.addEventListener('beforeunload', () => {
+        console.log('Cambiando de página, vaciando recomendaciones')
+        this.vaciarRecomendaciones()
+      })
+
+      // También escuchar cambios de ruta si está usando Vue Router
+      if (this.$router) {
+        this.$router.beforeEach((to, from, next) => {
+          if (from.path !== to.path) {
+            console.log('Cambio de ruta detectado, vaciando recomendaciones')
+            this.vaciarRecomendaciones()
+          }
+          next()
+        })
+      }
+
+      // Detectar cuando el usuario cierra la pestaña/ventana
+      window.addEventListener('pagehide', () => {
+        console.log('Página oculta, vaciando recomendaciones')
+        this.vaciarRecomendaciones()
+      })
+
+      // Detectar navegación usando el historial del navegador
+      window.addEventListener('popstate', () => {
+        console.log('Navegación con historial detectada, vaciando recomendaciones')
+        this.vaciarRecomendaciones()
+      })
+    },
     toggleChatbot() {
       this.isChatbotOpen = !this.isChatbotOpen
     },
@@ -96,7 +339,7 @@ export default {
           {
             parts: [
               {
-                text: `Accidente: ${this.accidentDescription}. Botiquín: ${this.botiquinItems}`,
+                text: `Accidente: ${this.accident}. Botiquín disponible: ${this.botiquinItems}. Proporciona recomendaciones de primeros auxilios paso a paso.`,
               },
             ],
           },
@@ -125,15 +368,60 @@ export default {
           this.steps = data.candidates[0].content.parts.map((part) => {
             // Formatear cada paso según el estilo proporcionado
             let formattedStep = part.text
+
+            // Formatear texto en negrita
             if (formattedStep.includes('**')) {
-              formattedStep = formattedStep.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+              formattedStep = formattedStep.replace(
+                /\*\*(.*?)\*\*/g,
+                '<strong class="highlight">$1</strong>',
+              )
             }
+
+            // Formatear texto en cursiva
             if (formattedStep.includes('_')) {
-              formattedStep = formattedStep.replace(/_(.*?)_/g, '<em>$1</em>')
+              formattedStep = formattedStep.replace(/_(.*?)_/g, '<em class="italic-text">$1</em>')
             }
-            return `<p>${formattedStep}</p>` // Separar cada paso con punto y aparte
+
+            // Detectar y formatear números seguidos de punto (pasos numerados)
+            formattedStep = formattedStep.replace(
+              /(\d+)\.\s/g,
+              '<div class="step-break"></div><div class="step-number">$1.</div> ',
+            )
+
+            // Formatear títulos principales (palabras en mayúsculas seguidas de dos puntos)
+            formattedStep = formattedStep.replace(
+              /([A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑ\s]+):/g,
+              '<h4 class="section-title">$1:</h4>',
+            )
+
+            // Formatear subtítulos con asterisco
+            formattedStep = formattedStep.replace(
+              /\* ([^:]+):/g,
+              '<div class="subsection-title">• $1:</div>',
+            )
+
+            // Agregar saltos de línea antes de palabras clave importantes
+            formattedStep = formattedStep.replace(
+              /(Prioridad:|Pasos:|Consideraciones importantes:|En resumen:)/g,
+              '<div class="section-break"></div><h3 class="main-title">$1</h3>',
+            )
+
+            // Formatear puntos con asterisco simple
+            formattedStep = formattedStep.replace(
+              /\* ([^*]+)/g,
+              '<div class="bullet-point">• $1</div>',
+            )
+
+            // Agregar espaciado después de puntos finales
+            formattedStep = formattedStep.replace(/\. ([A-Z])/g, '. <br><br>$1')
+
+            return `<div class="formatted-step">${formattedStep}</div>`
           })
           console.log('Pasos formateados:', this.steps) // Log para verificar los pasos formateados
+
+          // Guardar las recomendaciones
+          const respuestaCompleta = this.steps.join('')
+          this.guardarRecomendaciones(respuestaCompleta)
         } else {
           console.warn('No se encontraron candidatos en la respuesta:', data)
           this.steps = ['<p>No se encontraron recomendaciones.</p>']
@@ -209,6 +497,49 @@ export default {
   margin-bottom: 20px;
 }
 
+label {
+  display: block;
+  margin-bottom: 5px;
+  margin-top: 15px;
+  font-weight: bold;
+  color: #333;
+  font-size: 1rem;
+}
+
+label:first-child {
+  margin-top: 0;
+}
+
+.accident-display {
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 10px;
+  border: 2px solid #4caf50;
+  border-radius: 4px;
+  background-color: #e8f5e8;
+  color: #2e7d32;
+  font-weight: bold;
+  font-size: 1.1rem;
+  text-align: center;
+}
+
+.botiquin-selector {
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 1rem;
+  background-color: #f9f9f9;
+  color: #333;
+}
+
+.botiquin-selector:focus {
+  outline: none;
+  border-color: #00bfff;
+  box-shadow: 0 0 5px rgba(0, 191, 255, 0.3);
+}
+
 textarea {
   width: 100%;
   height: 100px;
@@ -219,6 +550,13 @@ textarea {
   font-size: 1rem;
   background-color: #f0f8ff;
   color: #333;
+  resize: vertical;
+}
+
+textarea[readonly] {
+  background-color: #f5f5f5;
+  color: #666;
+  cursor: not-allowed;
 }
 
 textarea::placeholder {
@@ -257,6 +595,89 @@ button:hover {
   font-size: 1.5rem;
   margin-bottom: 10px;
   text-align: center;
+}
+
+/* Estilos para formateo mejorado de recomendaciones */
+.formatted-step {
+  line-height: 1.6;
+  font-size: 1rem;
+}
+
+.main-title {
+  color: #d32f2f;
+  font-size: 1.3rem;
+  font-weight: bold;
+  margin: 15px 0 10px 0;
+  padding: 8px 12px;
+  background: linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%);
+  border-left: 4px solid #d32f2f;
+  border-radius: 6px;
+}
+
+.section-title {
+  color: #1976d2;
+  font-size: 1.1rem;
+  font-weight: bold;
+  margin: 12px 0 6px 0;
+  padding: 6px 10px;
+  background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+  border-left: 3px solid #1976d2;
+  border-radius: 4px;
+}
+
+.subsection-title {
+  color: #388e3c;
+  font-weight: bold;
+  margin: 8px 0 4px 15px;
+  padding: 4px 8px;
+  background-color: #e8f5e9;
+  border-radius: 4px;
+  border-left: 2px solid #388e3c;
+}
+
+.step-number {
+  display: inline-block;
+  background: linear-gradient(135deg, #ff6f00 0%, #ff8f00 100%);
+  color: white;
+  font-weight: bold;
+  font-size: 1.1rem;
+  padding: 6px 12px;
+  border-radius: 20px;
+  margin: 8px 5px 8px 0;
+  box-shadow: 0 2px 4px rgba(255, 111, 0, 0.3);
+}
+
+.step-break {
+  margin: 15px 0 5px 0;
+}
+
+.section-break {
+  margin: 20px 0 10px 0;
+}
+
+.bullet-point {
+  margin: 6px 0 6px 20px;
+  padding: 4px 8px;
+  background-color: #f3e5f5;
+  border-left: 2px solid #9c27b0;
+  border-radius: 3px;
+}
+
+.highlight {
+  background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
+  color: #e65100;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: bold;
+  border: 1px solid #ffcc02;
+}
+
+.italic-text {
+  color: #5d4037;
+  font-style: italic;
+  background-color: #efebe9;
+  padding: 1px 4px;
+  border-radius: 3px;
 }
 
 .response-section ul {

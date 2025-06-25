@@ -3,9 +3,20 @@ import { supabase } from '../supabase'
 import { useAuth } from './useAuth'
 
 export function useBotiquinDB() {
-  const { user } = useAuth()
+  const { user, getCurrentSession } = useAuth()
   const loading = ref(false)
   const error = ref(null)
+
+  // Función auxiliar para mapear tipos de UI a BD
+  const mapearTipoParaBD = (tipo) => {
+    return tipo === 'montaña' ? 'montania' : tipo
+  }
+
+  // Función auxiliar para mapear tipos de BD a UI
+  const mapearTipoParaUI = (tipo) => {
+    console.log(`🔄 mapearTipoParaUI: "${tipo}" -> "${tipo === 'montania' ? 'montaña' : tipo}"`)
+    return tipo === 'montania' ? 'montaña' : tipo
+  }
 
   // Items disponibles por tipo de botiquín
   const itemsDisponibles = ref({
@@ -23,21 +34,39 @@ export function useBotiquinDB() {
 
   // Función auxiliar para verificar/obtener usuario autenticado
   const verificarAutenticacion = async () => {
-    if (user.value) {
+    console.log('🔄 Verificando autenticación...')
+    console.log('👤 Estado inicial del usuario:', {
+      hasUser: !!user.value,
+      userEmail: user.value?.email,
+      userMetadata: user.value?.user_metadata,
+    })
+
+    // Si ya tenemos usuario y es válido, devolverlo
+    if (user.value && user.value.email) {
+      console.log('✅ Usuario ya disponible:', user.value.email)
       return user.value
     }
 
-    console.log('🔄 Verificando autenticación...')
     try {
-      const { getCurrentSession } = useAuth()
+      // Intentar obtener la sesión actual usando la función importada
+      console.log('🔍 Obteniendo sesión desde useAuth...')
+
       const session = await getCurrentSession()
 
+      console.log('📊 Resultado de getCurrentSession:', {
+        hasSession: !!session,
+        hasUser: !!session?.user,
+        userEmail: session?.user?.email,
+      })
+
       if (session?.user) {
-        user.value = session.user
-        console.log('✅ Usuario autenticado encontrado:', session.user.email)
+        console.log('✅ Usuario autenticado encontrado:', {
+          email: session.user.email,
+          metadata: session.user.user_metadata,
+        })
         return session.user
       } else {
-        console.log('❌ No hay sesión activa')
+        console.log('❌ No hay sesión activa o usuario en la sesión')
         return null
       }
     } catch (error) {
@@ -48,46 +77,61 @@ export function useBotiquinDB() {
 
   // Función auxiliar para obtener el ID del usuario interno
   const obtenerIdUsuarioInterno = async () => {
-    if (!user.value) {
+    console.log('🔍 Iniciando obtenerIdUsuarioInterno...')
+
+    // Verificar autenticación primero
+    const currentUser = await verificarAutenticacion()
+
+    if (!currentUser) {
+      console.error('❌ No hay usuario autenticado en obtenerIdUsuarioInterno')
       throw new Error('Usuario no autenticado')
     }
 
-    console.log('Buscando usuario interno para:', user.value.email)
+    console.log('📋 Buscando usuario interno para:', {
+      email: currentUser.email,
+      id: currentUser.id,
+      metadata: currentUser.user_metadata,
+    })
 
-    const { data: usuarioExistente, error: buscarError } = await supabase
-      .from('usuarios')
-      .select('id_usuario')
-      .eq('correo', user.value.email)
-      .single()
-
-    if (buscarError && buscarError.code !== 'PGRST116') {
-      console.error('Error buscando usuario:', buscarError)
-      throw buscarError
-    }
-
-    if (usuarioExistente) {
-      console.log('Usuario encontrado:', usuarioExistente)
-      return usuarioExistente.id_usuario
-    } else {
-      console.log('Creando nuevo usuario en tabla personalizada')
-      // Crear usuario en tabla personalizada
-      const { data: nuevoUsuario, error: crearError } = await supabase
+    try {
+      const { data: usuarioExistente, error: buscarError } = await supabase
         .from('usuarios')
-        .insert({
-          nombre: user.value.user_metadata?.full_name || user.value.email.split('@')[0],
-          correo: user.value.email,
-          contrasena: 'auth_supabase', // Placeholder ya que usa Supabase Auth
-        })
         .select('id_usuario')
+        .eq('correo', currentUser.email)
         .single()
 
-      if (crearError) {
-        console.error('Error creando usuario:', crearError)
-        throw crearError
+      if (buscarError && buscarError.code !== 'PGRST116') {
+        console.error('❌ Error buscando usuario:', buscarError)
+        throw buscarError
       }
 
-      console.log('Nuevo usuario creado:', nuevoUsuario)
-      return nuevoUsuario.id_usuario
+      if (usuarioExistente) {
+        console.log('✅ Usuario encontrado en BD:', usuarioExistente)
+        return usuarioExistente.id_usuario
+      } else {
+        console.log('📝 Creando nuevo usuario en tabla personalizada...')
+        // Crear usuario en tabla personalizada
+        const { data: nuevoUsuario, error: crearError } = await supabase
+          .from('usuarios')
+          .insert({
+            nombre: currentUser.user_metadata?.full_name || currentUser.email.split('@')[0],
+            correo: currentUser.email,
+            contrasena: 'auth_supabase', // Placeholder ya que usa Supabase Auth
+          })
+          .select('id_usuario')
+          .single()
+
+        if (crearError) {
+          console.error('❌ Error creando usuario:', crearError)
+          throw crearError
+        }
+
+        console.log('✅ Nuevo usuario creado:', nuevoUsuario)
+        return nuevoUsuario.id_usuario
+      }
+    } catch (err) {
+      console.error('💥 Error completo en obtenerIdUsuarioInterno:', err)
+      throw err
     }
   }
 
@@ -112,7 +156,7 @@ export function useBotiquinDB() {
       console.log(`📋 Estado inicial de itemsDisponibles.${tipo}:`, itemsDisponibles.value[tipo])
 
       // Mapear montaña a montania para el nombre de la tabla
-      const tableName = tipo === 'montaña' ? 'montania' : tipo
+      const tableName = mapearTipoParaBD(tipo)
 
       const { data, error: fetchError } = await supabase
         .from(`${tableName}_items`)
@@ -233,32 +277,10 @@ export function useBotiquinDB() {
   const registrarInventario = async (tipo, items) => {
     console.log('=== INICIO REGISTRO INVENTARIO ===')
 
-    // Verificar autenticación de manera más robusta
-    let currentUser = user.value
+    // Verificar autenticación usando la función centralizada
+    const currentUser = await verificarAutenticacion()
 
-    if (!currentUser) {
-      console.log('👤 Usuario no encontrado en estado local, obteniendo sesión actual...')
-      try {
-        const { getCurrentSession } = useAuth()
-        const session = await getCurrentSession()
-        console.log('📊 Sesión obtenida:', {
-          hasSession: !!session,
-          hasUser: !!session?.user,
-          userEmail: session?.user?.email,
-        })
-
-        if (session?.user) {
-          currentUser = session.user
-          // Actualizar el estado local del usuario
-          user.value = session.user
-          console.log('✅ Usuario actualizado desde sesión:', currentUser.email)
-        }
-      } catch (sessionError) {
-        console.error('❌ Error obteniendo sesión:', sessionError)
-      }
-    }
-
-    // Si aún no hay usuario después de intentar obtener la sesión
+    // Si aún no hay usuario después de verificar autenticación
     if (!currentUser) {
       console.error('❌ No se pudo obtener información del usuario autenticado')
       const errorMsg =
@@ -306,9 +328,14 @@ export function useBotiquinDB() {
 
       // Crear detalles del inventario
       console.log('📋 Preparando detalles del inventario...')
+
+      // Mapear tipo para compatibilidad con BD (montaña -> montania)
+      const tipoParaBD = mapearTipoParaBD(tipo)
+      console.log('🔄 Tipo mapeado:', { tipoOriginal: tipo, tipoParaBD })
+
       const detalles = items.map((item) => ({
         id_registro: registro.id_registro,
-        tipo_kit: tipo,
+        tipo_kit: tipoParaBD,
         id_item: item.id_item,
         cantidad: item.cantidad,
       }))
@@ -355,12 +382,19 @@ export function useBotiquinDB() {
 
       // Insertar nuevos detalles
       if (items.length > 0) {
-        const detalles = items.map((item) => ({
-          id_registro: idRegistro,
-          tipo_kit: item.tipo_kit,
-          id_item: item.id_item,
-          cantidad: item.cantidad,
-        }))
+        const detalles = items.map((item) => {
+          // Mapear tipo para compatibilidad con BD (montaña -> montania)
+          const tipoParaBD = mapearTipoParaBD(item.tipo_kit)
+
+          return {
+            id_registro: idRegistro,
+            tipo_kit: tipoParaBD,
+            id_item: item.id_item,
+            cantidad: item.cantidad,
+          }
+        })
+
+        console.log('📋 Actualizando con detalles mapeados:', detalles)
 
         const { error: insertError } = await supabase.from('detalle_inventario').insert(detalles)
 
@@ -419,7 +453,7 @@ export function useBotiquinDB() {
 
         for (const detalle of registro.detalle_inventario) {
           // Mapear nombre de tabla para montaña/montania
-          const tableName = detalle.tipo_kit === 'montaña' ? 'montania' : detalle.tipo_kit
+          const tableName = mapearTipoParaBD(detalle.tipo_kit)
 
           // Obtener nombre del item según el tipo
           const { data: itemData } = await supabase
@@ -430,6 +464,8 @@ export function useBotiquinDB() {
 
           detallesConNombres.push({
             ...detalle,
+            // Mapear tipo de vuelta para mostrar en UI (montania -> montaña)
+            tipo_kit: mapearTipoParaUI(detalle.tipo_kit),
             nombre_item: itemData?.nombre || 'Item desconocido',
           })
         }
@@ -541,7 +577,6 @@ export function useBotiquinDB() {
     }
   }
 
-  // Obtener inventario específico
   const obtenerInventario = async (idRegistro) => {
     try {
       const { data, error: fetchError } = await supabase
@@ -567,6 +602,86 @@ export function useBotiquinDB() {
     }
   }
 
+  // Obtener inventario específico por ID para edición
+  const obtenerInventarioPorId = async (idInventario) => {
+    const currentUser = await verificarAutenticacion()
+    if (!currentUser) {
+      console.log('❌ No hay usuario autenticado para obtener inventario por ID')
+      return null
+    }
+
+    try {
+      loading.value = true
+      error.value = null
+
+      console.log('🔍 Obteniendo inventario por ID:', idInventario)
+
+      const { data, error: fetchError } = await supabase
+        .from('registro_inventario')
+        .select(
+          `
+          *,
+          detalle_inventario (
+            *
+          )
+        `,
+        )
+        .eq('id_registro', idInventario)
+        .single()
+
+      if (fetchError) throw fetchError
+
+      if (data) {
+        console.log('📥 Datos del inventario obtenido:', data)
+
+        // Procesar datos para incluir nombres de items
+        const detallesConNombres = []
+
+        for (const detalle of data.detalle_inventario) {
+          // Mapear nombre de tabla para montaña/montania
+          const tableName = mapearTipoParaBD(detalle.tipo_kit)
+
+          // Obtener nombre del item según el tipo
+          const { data: itemData } = await supabase
+            .from(`${tableName}_items`)
+            .select('nombre')
+            .eq('id_item', detalle.id_item)
+            .single()
+
+          detallesConNombres.push({
+            ...detalle,
+            // Mapear tipo de vuelta para mostrar en UI (montania -> montaña)
+            tipo_kit: mapearTipoParaUI(detalle.tipo_kit),
+            nombre_item: itemData?.nombre || 'Item desconocido',
+          })
+        }
+
+        const inventarioCompleto = {
+          ...data,
+          detalle_inventario: detallesConNombres,
+          // Crear estructura de items compatible
+          items: detallesConNombres.map((item) => ({
+            id_item: item.id_item,
+            nombre: item.nombre_item,
+            cantidad: item.cantidad,
+            tipo_kit: item.tipo_kit,
+          })),
+        }
+
+        console.log('✅ Inventario completo procesado:', inventarioCompleto)
+        return inventarioCompleto
+      }
+
+      return null
+    } catch (err) {
+      error.value = err.message
+      console.error('Error obteniendo inventario por ID:', err)
+      return null
+    } finally {
+      loading.value = false
+    }
+  }
+
   // Obtener inventario actual del usuario por tipo
   const obtenerInventarioActual = async (tipo) => {
     const currentUser = await verificarAutenticacion()
@@ -582,6 +697,10 @@ export function useBotiquinDB() {
       // Obtener ID del usuario interno
       const id_usuario_interno = await obtenerIdUsuarioInterno()
 
+      // Mapear tipo para consulta en BD
+      const tipoParaBD = mapearTipoParaBD(tipo)
+      console.log('🔍 Buscando inventario actual:', { tipoOriginal: tipo, tipoParaBD })
+
       const { data, error: fetchError } = await supabase
         .from('registro_inventario')
         .select(
@@ -593,7 +712,7 @@ export function useBotiquinDB() {
         `,
         )
         .eq('id_usuario', id_usuario_interno)
-        .eq('detalle_inventario.tipo_kit', tipo)
+        .eq('detalle_inventario.tipo_kit', tipoParaBD)
         .order('fecha_registro', { ascending: false })
         .limit(1)
         .single()
@@ -606,7 +725,7 @@ export function useBotiquinDB() {
 
         for (const detalle of data.detalle_inventario) {
           // Mapear nombre de tabla para montaña/montania
-          const tableName = detalle.tipo_kit === 'montaña' ? 'montania' : detalle.tipo_kit
+          const tableName = mapearTipoParaBD(detalle.tipo_kit)
 
           // Obtener nombre del item según el tipo
           const { data: itemData } = await supabase
@@ -617,6 +736,8 @@ export function useBotiquinDB() {
 
           detallesConNombres.push({
             ...detalle,
+            // Mapear tipo de vuelta para mostrar en UI (montania -> montaña)
+            tipo_kit: mapearTipoParaUI(detalle.tipo_kit),
             nombre_item: itemData?.nombre || 'Item desconocido',
           })
         }
@@ -686,17 +807,70 @@ export function useBotiquinDB() {
 
       console.log('✅ Registro de compra creado:', compra)
 
-      // Crear detalles de la compra - asegurar que tipo_kit esté incluido
-      const detalles = items.map((item) => ({
-        id_compra: compra.id_compra,
-        tipo_kit: tipoKit, // Usar el tipo pasado como parámetro
-        id_item: item.id_item,
-        cantidad: item.cantidad,
-      }))
+      // Mapear tipo para compatibilidad con BD (montaña -> montania)
+      const tipoParaBD = mapearTipoParaBD(tipoKit)
+      console.log('🔄 Tipo mapeado para compra:', { tipoOriginal: tipoKit, tipoParaBD })
 
-      console.log('📋 Detalles de compra a insertar:', detalles)
+      // Calcular precio total obteniendo precios de los items
+      let precioTotal = 0
+      const detallesConPrecio = []
 
-      const { error: detallesError } = await supabase.from('detalle_compras').insert(detalles)
+      for (const item of items) {
+        try {
+          // Obtener precio del item
+          const tablaItems = `${tipoParaBD}_items`
+          const { data: itemData, error: itemError } = await supabase
+            .from(tablaItems)
+            .select('precio')
+            .eq('id_item', item.id_item)
+            .single()
+
+          if (itemError) {
+            console.warn(`Error obteniendo precio para item ${item.id_item}:`, itemError)
+          }
+
+          const precio = itemData?.precio || 0
+          const subtotal = item.cantidad * precio
+          precioTotal += subtotal
+
+          detallesConPrecio.push({
+            id_compra: compra.id_compra,
+            tipo_kit: tipoParaBD,
+            id_item: item.id_item,
+            cantidad: item.cantidad,
+          })
+
+          console.log(`💰 Item ${item.id_item}: ${item.cantidad} x S/${precio} = S/${subtotal}`)
+        } catch (err) {
+          console.warn(`Error obteniendo precio para item ${item.id_item}:`, err)
+          // Continuar sin precio
+          detallesConPrecio.push({
+            id_compra: compra.id_compra,
+            tipo_kit: tipoParaBD,
+            id_item: item.id_item,
+            cantidad: item.cantidad,
+          })
+        }
+      }
+
+      console.log(`💰 Precio total calculado: S/${precioTotal}`)
+
+      // Actualizar el registro de compra con el precio total
+      const { error: updateError } = await supabase
+        .from('compras')
+        .update({ precio_total: precioTotal })
+        .eq('id_compra', compra.id_compra)
+
+      if (updateError) {
+        console.error('❌ Error actualizando precio total:', updateError)
+        throw updateError
+      }
+
+      console.log('📋 Detalles de compra a insertar:', detallesConPrecio)
+
+      const { error: detallesError } = await supabase
+        .from('detalle_compras')
+        .insert(detallesConPrecio)
 
       if (detallesError) {
         console.error('❌ Error insertando detalles de compra:', detallesError)
@@ -714,6 +888,429 @@ export function useBotiquinDB() {
     }
   }
 
+  // Función para obtener historial de compras del usuario
+  const obtenerHistorialCompras = async (filtros = {}) => {
+    if (!user.value) {
+      const errorMsg = 'Debes estar autenticado para ver el historial de compras.'
+      error.value = errorMsg
+      throw new Error(errorMsg)
+    }
+
+    try {
+      loading.value = true
+      error.value = null
+
+      console.log('Obteniendo historial de compras del usuario:', user.value.email)
+
+      // Obtener ID del usuario interno
+      const id_usuario_interno = await obtenerIdUsuarioInterno()
+      console.log('ID usuario interno obtenido:', id_usuario_interno)
+
+      // Primero obtenemos las compras básicas
+      let query = supabase
+        .from('compras')
+        .select(
+          `
+          id_compra,
+          id_usuario,
+          fecha_compra,
+          precio_total,
+          detalle_compras(
+            id_detalle,
+            tipo_kit,
+            id_item,
+            cantidad
+          )
+        `,
+        )
+        .eq('id_usuario', id_usuario_interno)
+        .order('fecha_compra', { ascending: false })
+
+      // Aplicar filtros si existen
+      if (filtros.estado) {
+        // Nota: No veo campo estado en la tabla compras,
+        // por ahora ignoramos este filtro
+        console.warn('Filtro por estado no disponible en la estructura actual')
+      }
+
+      if (filtros.tipo_kit) {
+        // Filtrar a nivel de detalle_compras
+        query = query.eq('detalle_compras.tipo_kit', filtros.tipo_kit)
+      }
+
+      const { data: compras, error: comprasError } = await query
+
+      if (comprasError) {
+        console.error('❌ Error obteniendo historial de compras:', comprasError)
+        throw comprasError
+      }
+
+      console.log('✅ Historial de compras obtenido RAW:', compras)
+
+      // Debug MUY detallado de cada compra - NUEVO
+      console.log('\n=== DEBUG DETALLADO DE DATOS RAW ===')
+      compras.forEach((compra, index) => {
+        console.log(`\n📋 COMPRA ${index + 1}:`)
+        console.log(`  ID: ${compra.id_compra}`)
+        console.log(`  Fecha: ${compra.fecha_compra}`)
+        console.log(`  Precio Total: ${compra.precio_total}`)
+        console.log(`  Número de detalles: ${compra.detalle_compras?.length || 0}`)
+
+        if (compra.detalle_compras && compra.detalle_compras.length > 0) {
+          compra.detalle_compras.forEach((detalle, detalleIndex) => {
+            console.log(`    📦 DETALLE ${detalleIndex + 1}:`)
+            console.log(`      id_detalle: ${detalle.id_detalle}`)
+            console.log(`      tipo_kit: "${detalle.tipo_kit}" (tipo: ${typeof detalle.tipo_kit})`)
+            console.log(`      id_item: ${detalle.id_item}`)
+            console.log(`      cantidad: ${detalle.cantidad}`)
+            console.log(`      Detalle completo:`, detalle)
+          })
+        } else {
+          console.log(`    ⚠️ No hay detalles para esta compra`)
+        }
+      })
+      console.log('=== FIN DEBUG DETALLADO ===\n')
+
+      // Debug detallado de cada compra
+      compras.forEach((compra, index) => {
+        console.log(`\n📋 Compra ${index + 1} - Detalles:`, {
+          id_compra: compra.id_compra,
+          fecha_compra: compra.fecha_compra,
+          precio_total: compra.precio_total,
+          detalle_compras: compra.detalle_compras,
+        })
+
+        compra.detalle_compras?.forEach((detalle, detalleIndex) => {
+          console.log(`  📦 Detalle ${detalleIndex + 1}:`, {
+            id_detalle: detalle.id_detalle,
+            tipo_kit: detalle.tipo_kit,
+            id_item: detalle.id_item,
+            cantidad: detalle.cantidad,
+          })
+        })
+      })
+
+      // Debug: verificar los valores de precio_total
+      compras.forEach((compra, index) => {
+        console.log(`Compra ${index + 1}:`, {
+          id_compra: compra.id_compra,
+          fecha_compra: compra.fecha_compra,
+          precio_total: compra.precio_total,
+          tipo_precio_total: typeof compra.precio_total,
+          detalle_compras_count: compra.detalle_compras?.length || 0,
+        })
+      })
+
+      // Ahora necesitamos enriquecer los datos con información de los items
+      const comprasEnriquecidas = await Promise.all(
+        compras.map(async (compra) => {
+          const detallesEnriquecidos = await Promise.all(
+            compra.detalle_compras.map(async (detalle) => {
+              try {
+                console.log(`\n🔍 PROCESANDO DETALLE INDIVIDUAL:`)
+                console.log(`  Detalle RAW:`, detalle)
+                console.log(`  tipo_kit RAW: "${detalle.tipo_kit}"`)
+                console.log(`  Tipo de tipo_kit: ${typeof detalle.tipo_kit}`)
+                console.log(`  Es undefined: ${detalle.tipo_kit === undefined}`)
+                console.log(`  Es null: ${detalle.tipo_kit === null}`)
+                console.log(`  Es string vacío: ${detalle.tipo_kit === ''}`)
+
+                // Si tipo_kit es undefined o null, intentar detectarlo
+                let tipoKit = detalle.tipo_kit
+                if (!tipoKit) {
+                  console.log(`⚠️ tipo_kit es falsy para item ${detalle.id_item}, detectando...`)
+                  tipoKit = await detectarTipoKit(detalle.id_item)
+                  if (!tipoKit) {
+                    console.error(`❌ No se pudo detectar tipo para item ${detalle.id_item}`)
+                    return {
+                      ...detalle,
+                      tipo_kit: 'desconocido',
+                      item_name: `Item ${detalle.id_item} (tipo desconocido)`,
+                      price: 0,
+                      subtotal: 0,
+                    }
+                  }
+                  console.log(`✅ Tipo detectado para item ${detalle.id_item}: ${tipoKit}`)
+                } else {
+                  console.log(`✅ tipo_kit existe: "${tipoKit}"`)
+                }
+
+                // Obtener información del item según su tipo (mapear montaña -> montania)
+                const tipoParaBD = mapearTipoParaBD(tipoKit)
+                const tablaItems = `${tipoParaBD}_items`
+                console.log(
+                  `🔍 Buscando item ${detalle.id_item} en tabla ${tablaItems} (tipo original: ${tipoKit})`,
+                )
+
+                const { data: itemData, error: itemError } = await supabase
+                  .from(tablaItems)
+                  .select('nombre, precio')
+                  .eq('id_item', detalle.id_item)
+                  .single()
+
+                console.log(`📊 Resultado query - itemData:`, itemData, `itemError:`, itemError)
+
+                if (itemError) {
+                  console.warn(
+                    `❌ No se pudo obtener item ${detalle.id_item} de ${tablaItems} (tipo: ${tipoKit} -> ${tipoParaBD}):`,
+                    itemError,
+                  )
+                  return {
+                    ...detalle,
+                    tipo_kit: tipoKit, // Usar el tipo detectado o original
+                    item_name: `Item ${detalle.id_item} (${tipoKit})`, // Incluir tipo para debug
+                    price: 0,
+                    subtotal: 0,
+                  }
+                }
+
+                console.log(`✅ Item encontrado: ${itemData.nombre} - S/${itemData.precio || 0}`)
+
+                const precio = itemData.precio || 0
+                const subtotal = detalle.cantidad * precio
+
+                return {
+                  ...detalle,
+                  tipo_kit: tipoKit, // Usar el tipo detectado o original
+                  item_name: itemData.nombre,
+                  price: precio,
+                  subtotal: subtotal,
+                }
+              } catch (err) {
+                console.warn(
+                  `❌ Error procesando detalle ${detalle.id_item} (tipo: ${detalle.tipo_kit || 'undefined'}):`,
+                  err,
+                )
+                return {
+                  ...detalle,
+                  tipo_kit: detalle.tipo_kit || 'error', // Usar tipo original o 'error' si no existe
+                  item_name: `Error: Item ${detalle.id_item}`,
+                  price: 0,
+                  subtotal: 0,
+                }
+              }
+            }),
+          )
+
+          // Calcular el total de los items dinámicamente si no hay precio_total en BD
+          const totalCalculado = detallesEnriquecidos.reduce(
+            (sum, detalle) => sum + (detalle.subtotal || 0),
+            0,
+          )
+          const totalFinal = compra.precio_total > 0 ? compra.precio_total : totalCalculado
+
+          console.log(
+            `Compra ${compra.id_compra}: precio_total BD = ${compra.precio_total}, calculado = ${totalCalculado}, final = ${totalFinal}`,
+          )
+
+          // Debug del tipo antes de asignarlo
+          const tipoOriginal = compra.detalle_compras[0]?.tipo_kit
+          const tipoEnriquecido = detallesEnriquecidos[0]?.tipo_kit
+
+          // Determinar el tipo con más validaciones
+          let tipoFinal = 'desconocido'
+
+          // NUEVO: Siempre usar el tipo original si está disponible, no depender del enriquecimiento
+          if (compra.detalle_compras.length > 0 && compra.detalle_compras[0]?.tipo_kit) {
+            tipoFinal = mapearTipoParaUI(compra.detalle_compras[0].tipo_kit)
+          } else if (detallesEnriquecidos.length > 0 && detallesEnriquecidos[0]?.tipo_kit) {
+            tipoFinal = mapearTipoParaUI(detallesEnriquecidos[0].tipo_kit)
+          }
+
+          console.log(`🔍 Debug tipo para compra ${compra.id_compra}:`, {
+            tipoOriginal,
+            tipoEnriquecido,
+            tipoFinal,
+            detallesEnriquecidosLength: detallesEnriquecidos.length,
+            detalleComprasLength: compra.detalle_compras.length,
+            detallesEnriquecidos: detallesEnriquecidos,
+            detalleCompras: compra.detalle_compras,
+          })
+
+          // NUEVO: Debug adicional si el tipo final es 'desconocido'
+          if (tipoFinal === 'desconocido') {
+            console.error(`❌ ALERT: Tipo desconocido para compra ${compra.id_compra}!`, {
+              tipoOriginal,
+              tipoEnriquecido,
+              detalleCompras: compra.detalle_compras,
+              detallesEnriquecidos,
+            })
+            // También mostrar alert para debug en UI
+            alert(
+              `TIPO DESCONOCIDO para compra ${compra.id_compra}!\nTipo original: ${tipoOriginal}\nTipo enriquecido: ${tipoEnriquecido}`,
+            )
+          }
+
+          const compraFinal = {
+            id: compra.id_compra,
+            created_at: compra.fecha_compra,
+            status: 'pending', // Por defecto, ya que no hay campo estado
+            type: tipoFinal,
+            total: totalFinal,
+            items: detallesEnriquecidos.map((detalle) => ({
+              id: detalle.id_item,
+              item_name: detalle.item_name,
+              quantity: detalle.cantidad,
+              price: detalle.price,
+              subtotal: detalle.subtotal,
+            })),
+            // Verificar si es compra de hoy
+            isToday: new Date(compra.fecha_compra).toDateString() === new Date().toDateString(),
+          }
+
+          console.log(`📊 Compra final mapeada:`, compraFinal)
+          return compraFinal
+        }),
+      )
+
+      return comprasEnriquecidas
+    } catch (err) {
+      console.error('❌ Error obteniendo historial de compras:', err)
+      error.value = err.message
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  // Función para actualizar una compra
+  const actualizarCompra = async (id_compra, nuevosItems, nuevoTotal = 0) => {
+    if (!user.value) {
+      const errorMsg = 'Debes estar autenticado para actualizar compras.'
+      error.value = errorMsg
+      throw new Error(errorMsg)
+    }
+
+    try {
+      loading.value = true
+      error.value = null
+
+      console.log('🔄 Actualizando compra:', { id_compra, nuevosItems, nuevoTotal })
+
+      // Verificar que la compra existe y pertenece al usuario
+      const id_usuario_interno = await obtenerIdUsuarioInterno()
+
+      const { data: compra, error: verificarError } = await supabase
+        .from('compras')
+        .select('*')
+        .eq('id_compra', id_compra)
+        .eq('id_usuario', id_usuario_interno)
+        .single()
+
+      if (verificarError || !compra) {
+        throw new Error('No se encontró la compra o no tienes permisos para editarla')
+      }
+
+      // Permitir editar compras del día actual (no hay campo estado en la estructura actual)
+      const esHoy = new Date(compra.fecha_compra).toDateString() === new Date().toDateString()
+      if (!esHoy) {
+        throw new Error('Solo puedes editar compras del día actual')
+      }
+
+      // Eliminar detalles anteriores
+      const { error: eliminarError } = await supabase
+        .from('detalle_compras')
+        .delete()
+        .eq('id_compra', id_compra)
+
+      if (eliminarError) throw eliminarError
+
+      // Insertar nuevos detalles
+      const nuevosDetalles = nuevosItems.map((item) => ({
+        id_compra: id_compra,
+        tipo_kit: item.tipo_kit,
+        id_item: item.id_item,
+        cantidad: item.cantidad,
+      }))
+
+      const { error: detallesError } = await supabase.from('detalle_compras').insert(nuevosDetalles)
+
+      if (detallesError) throw detallesError
+
+      console.log('✅ Compra actualizada exitosamente')
+      return true
+    } catch (err) {
+      console.error('❌ Error actualizando compra:', err)
+      error.value = err.message
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  // Función de debug para obtener una compra específica
+  const debugObtenerCompra = async (idCompra) => {
+    try {
+      console.log('DEBUG: Obteniendo compra específica:', idCompra)
+
+      const { data: compra, error } = await supabase
+        .from('compras')
+        .select(
+          `
+          id_compra,
+          id_usuario,
+          fecha_compra,
+          precio_total,
+          detalle_compras(
+            id_detalle,
+            tipo_kit,
+            id_item,
+            cantidad
+          )
+        `,
+        )
+        .eq('id_compra', idCompra)
+        .single()
+
+      if (error) {
+        console.error('❌ Error obteniendo compra:', error)
+        return null
+      }
+
+      console.log('✅ Compra obtenida:', {
+        id_compra: compra.id_compra,
+        fecha_compra: compra.fecha_compra,
+        precio_total: compra.precio_total,
+        tipo_precio_total: typeof compra.precio_total,
+        valor_precio_total: compra.precio_total,
+        detalles_count: compra.detalle_compras?.length || 0,
+      })
+
+      return compra
+    } catch (err) {
+      console.error('💥 Error en debugObtenerCompra:', err)
+      return null
+    }
+  }
+
+  // Función auxiliar para detectar tipo de kit basado en id_item cuando tipo_kit es undefined
+  const detectarTipoKit = async (id_item) => {
+    console.log(`🔍 Detectando tipo de kit para item ${id_item}...`)
+
+    const tipos = ['hogar', 'escolar', 'oficina', 'industria', 'montania']
+
+    for (const tipo of tipos) {
+      try {
+        const { data, error } = await supabase
+          .from(`${tipo}_items`)
+          .select('id_item')
+          .eq('id_item', id_item)
+          .single()
+
+        if (!error && data) {
+          console.log(`✅ Item ${id_item} encontrado en tabla ${tipo}_items`)
+          return tipo
+        }
+      } catch (err) {
+        // Continuar con el siguiente tipo
+        console.log(`⚠️ Item ${id_item} no encontrado en ${tipo}_items`)
+      }
+    }
+
+    console.log(`❌ No se pudo detectar tipo para item ${id_item}`)
+    return null
+  }
+
   return {
     loading,
     error,
@@ -727,7 +1324,11 @@ export function useBotiquinDB() {
     cargarHistorialInventarios,
     eliminarInventario,
     obtenerInventario,
+    obtenerInventarioPorId,
     obtenerInventarioActual,
     crearOrdenCompra,
+    debugObtenerCompra,
+    obtenerHistorialCompras,
+    actualizarCompra,
   }
 }
