@@ -47,17 +47,17 @@ const items = [
 
 function goToFormulario(tipo) {
   if (tipo === 'Oficina') {
-    router.push({ path: '/botiquin-formulario/oficina' })
+    router.push({ path: '/botiquin-frm-oficina' })
   } else if (tipo === 'Escuelas') {
-    router.push({ path: '/botiquin-formulario/escolar' })
+    router.push({ path: '/botiquin-frm-escolar' })
   } else if (tipo === 'Hogar') {
-    router.push({ path: '/botiquin-formulario/hogar' })
+    router.push({ path: '/botiquin-frm-hogar' })
   } else if (tipo === 'Industrias') {
-    router.push({ path: '/botiquin-formulario/industrias' })
+    router.push({ path: '/botiquin-frm-industria' })
   } else if (tipo === 'Montaña') {
-    router.push({ path: '/botiquin-formulario/montaña' })
+    router.push({ path: '/botiquin-frm-montaña' })
   } else {
-    router.push({ path: `/botiquin-formulario/${tipo}` })
+    router.push({ path: `/botiquin-frm-${tipo.toLowerCase()}` })
   }
 }
 </script>

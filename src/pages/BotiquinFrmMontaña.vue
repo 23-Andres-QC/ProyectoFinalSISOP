@@ -2,379 +2,301 @@
   <q-layout view="lHh Lpr lFf">
     <q-header elevated>
       <q-toolbar>
-        <q-toolbar-title class="text-white">Formulario Botiquín - Montaña</q-toolbar-title>
+        <q-toolbar-title class="text-white">Botiquín de Montaña</q-toolbar-title>
       </q-toolbar>
     </q-header>
-    <q-page class="flex flex-center page-scroll">
-      <q-form @submit.prevent="onSubmit" class="q-gutter-md form-grid">
-        <div>
-          <div class="grid-container">
-            <div v-for="(item, idx) in montañaItems" :key="idx" class="grid-item">
-              <q-input
-                v-model.number="cantidades[item]"
-                :label="item"
-                type="number"
-                min="0"
-                :step="1"
-                :rules="[(val) => val >= 0 || 'No puede ser negativo']"
+    <q-page class="q-pa-md">
+      <div class="row q-gutter-md">
+        <!-- Panel izquierdo: Formulario -->
+        <div class="col-md-5 col-12">
+          <q-card class="q-pa-md">
+            <q-card-section>
+              <div class="text-h6 q-mb-md">Agregar Items al Botiquín</div>
+
+              <!-- Selector de item -->
+              <q-select
+                v-model="itemSeleccionado"
+                :options="itemsDisponibles.montania"
+                option-label="nombre"
+                option-value="id_item"
+                label="Seleccionar item"
                 filled
-                class="q-mb-sm"
+                clearable
+                class="q-mb-md"
               />
-            </div>
-          </div>
+
+              <!-- Input de cantidad -->
+              <q-input
+                v-model.number="cantidad"
+                label="Cantidad"
+                type="number"
+                min="1"
+                :rules="[(val) => val > 0 || 'Debe ser mayor a 0']"
+                filled
+                class="q-mb-md"
+                :disabled="!itemSeleccionado"
+              />
+
+              <!-- Botón agregar -->
+              <q-btn
+                label="Agregar"
+                color="primary"
+                icon="add"
+                @click="agregarItem"
+                :disabled="!itemSeleccionado || !cantidad || cantidad <= 0"
+                class="q-mb-md full-width"
+              />
+
+              <q-separator class="q-my-md" />
+
+              <!-- Botones de acción -->
+              <div class="row q-gutter-sm">
+                <q-btn
+                  label="Registrar"
+                  color="positive"
+                  icon="save"
+                  @click="registrarBotiquin"
+                  :loading="loading"
+                  :disabled="itemsAgregados.length === 0"
+                  class="col"
+                />
+                <q-btn
+                  label="Comprar"
+                  color="orange"
+                  icon="shopping_cart"
+                  @click="irACompras"
+                  :disabled="itemsAgregados.length === 0"
+                  class="col"
+                />
+              </div>
+
+              <q-btn
+                label="Ver Historial"
+                color="secondary"
+                icon="history"
+                @click="$router.push('/historial-botiquin')"
+                class="q-mt-sm full-width"
+              />
+            </q-card-section>
+          </q-card>
         </div>
-        <q-btn
-          label="Guardar inventario"
-          type="submit"
-          color="primary"
-          class="q-mt-md"
-          :loading="loading"
-        />
-        <q-btn
-          label="Ver historial"
-          color="secondary"
-          class="q-mt-md"
-          @click="mostrarHistorial = !mostrarHistorial"
-        />
-        <q-btn
-          label="Generar orden de compra"
-          color="accent"
-          class="q-mt-md"
-          @click="generarOrdenCompra"
-          :loading="loading"
-        />
-      </q-form>
-      <div
-        v-if="mostrarHistorial"
-        class="q-mt-lg historial-section"
-        style="max-width: 700px; width: 100%"
-      >
-        <q-card class="bg-grey-1 shadow-3">
-          <q-card-section>
-            <div class="text-h6 text-primary flex items-center q-mb-md">
-              <q-icon name="history" color="primary" class="q-mr-sm" />
-              Historial de inventarios
-            </div>
-            <div v-if="historial.length === 0" class="text-grey-7 text-subtitle2 q-pa-md">
-              <q-spinner color="primary" size="20px" class="q-mr-sm" v-if="loading" />
-              <span v-else>No hay registros guardados.</span>
-            </div>
-            <div v-else>
-              <q-list bordered separator>
-                <q-item
-                  v-for="(registro, idx) in historial"
-                  :key="idx"
-                  class="q-pa-md bg-white q-mb-sm rounded-borders shadow-1"
-                >
-                  <q-item-section top class="q-gutter-y-xs">
-                    <div class="row items-center q-mb-xs">
-                      <q-icon name="event" color="secondary" size="20px" class="q-mr-xs" />
-                      <span class="text-weight-medium text-secondary">Fecha:</span>
-                      <span class="q-ml-xs">{{ formatDate(registro.created_at) }}</span>
-                    </div>
-                    <q-separator spaced color="grey-3" />
-                    <div class="q-mt-xs">
-                      <span class="text-weight-medium text-accent">Objetos registrados:</span>
-                      <div class="q-mt-xs">
-                        <q-chip
-                          v-for="item in registro.items"
-                          :key="item.id"
-                          color="primary"
-                          text-color="white"
-                          class="q-mr-xs q-mb-xs"
-                        >
-                          <q-icon name="medical_services" size="16px" class="q-mr-xs" />
-                          {{ item.item_name }}: <b>{{ item.quantity }}</b>
-                        </q-chip>
-                      </div>
-                    </div>
+
+        <!-- Panel derecho: Vista previa -->
+        <div class="col-md-6 col-12">
+          <q-card class="q-pa-md">
+            <q-card-section>
+              <div class="text-h6 q-mb-md">Items Agregados</div>
+
+              <div v-if="itemsAgregados.length === 0" class="text-center text-grey-6 q-pa-lg">
+                <q-icon name="inventory" size="48px" class="q-mb-md" />
+                <div>No hay items agregados</div>
+              </div>
+
+              <q-list v-else separator>
+                <q-item v-for="(item, index) in itemsAgregados" :key="index" class="q-pa-md">
+                  <q-item-section>
+                    <q-item-label class="text-weight-medium">{{ item.nombre }}</q-item-label>
+                    <q-item-label caption>Cantidad: {{ item.cantidad }}</q-item-label>
+                  </q-item-section>
+                  <q-item-section side>
+                    <q-btn
+                      icon="delete"
+                      color="negative"
+                      flat
+                      round
+                      @click="eliminarItem(index)"
+                      size="sm"
+                    />
                   </q-item-section>
                 </q-item>
               </q-list>
-            </div>
-          </q-card-section>
-        </q-card>
-      </div>
 
-      <!-- Modal de orden de compra -->
-      <OrdenCompraModal
-        v-model="showOrderModal"
-        :items="ordenCompraItems"
-        :total="totalCompra"
-        @confirmar="confirmarOrden"
-      />
+              <div v-if="itemsAgregados.length > 0" class="q-mt-md">
+                <div class="text-subtitle1 text-weight-medium">
+                  Total de items: {{ itemsAgregados.length }}
+                </div>
+              </div>
+            </q-card-section>
+          </q-card>
+        </div>
+      </div>
     </q-page>
   </q-layout>
 </template>
 
 <script setup>
-import { reactive, ref, onMounted, watch } from 'vue'
-import { useQuasar } from 'quasar'
+import { ref, onMounted } from 'vue'
+import { Notify } from 'quasar'
 import { useRouter } from 'vue-router'
-import { useBotiquin } from '../composables/useBotiquin.js'
+import { useBotiquinDB } from '../composables/useBotiquinDB.js'
 import { useAuth } from '../composables/useAuth.js'
-import OrdenCompraModal from '../components/OrdenCompraModal.vue'
 
-const $q = useQuasar()
 const router = useRouter()
 const { user } = useAuth()
-const { registerInventory, getUserInventoryHistory, getItemPrices, createPurchaseOrder } =
-  useBotiquin()
+const { loading, itemsDisponibles, cargarItemsDisponibles, registrarInventario, crearOrdenCompra } =
+  useBotiquinDB()
 
-const mostrarHistorial = ref(false)
-const historial = ref([])
-const showOrderModal = ref(false)
-const ordenCompraItems = ref([])
-const totalCompra = ref(0)
-const loading = ref(false)
+// Variables para el formulario
+const itemSeleccionado = ref(null)
+const cantidad = ref(1)
+const itemsAgregados = ref([])
 
-const montañaItems = [
-  'Gasas estériles de diferentes tamaños',
-  'Vendas elásticas autoadhesivas',
-  'Curitas resistentes al agua',
-  'Alcohol antiséptico 70%',
-  'Yodo para desinfección',
-  'Analgésicos (ibuprofeno, paracetamol)',
-  'Antiinflamatorios',
-  'Antihistamínicos para alergias',
-  'Crema protectora solar factor 50+',
-  'Crema para quemaduras',
-  'Bálsamo para labios con protector solar',
-  'Termómetro resistente',
-  'Manta térmica de emergencia',
-  'Silbato de emergencia',
-  'Linterna pequeña con pilas extra',
-  'Tijeras multiuso',
-  'Pinzas de acero inoxidable',
-  'Guantes de nitrilo resistentes',
-  'Mascarillas contra polvo',
-  'Bolsas de hielo instantáneo',
-  'Suero fisiológico en ampollas',
-  'Jeringa desechable para irrigación',
-  'Cinta adhesiva resistente',
-  'Manual de primeros auxilios de montaña',
-]
+// Cargar items disponibles al montar el componente
+onMounted(async () => {
+  console.log('Cargando items de montaña...')
+  await cargarItemsDisponibles('montaña')
+  console.log('Items de montaña cargados:', itemsDisponibles.montania)
+})
 
-const cantidades = reactive({})
-montañaItems.forEach((item) => (cantidades[item] = 0))
-
-const formatDate = (dateString) => {
-  return new Date(dateString).toLocaleString()
-}
-
-async function onSubmit() {
-  if (!user.value) {
-    $q.notify({
-      type: 'negative',
-      message: 'Debes estar autenticado para guardar el inventario',
+// Agregar item a la lista
+const agregarItem = () => {
+  if (!itemSeleccionado.value || !cantidad.value || cantidad.value <= 0) {
+    Notify.create({
+      type: 'warning',
+      message: 'Selecciona un item y especifica una cantidad válida',
     })
     return
   }
 
-  loading.value = true
-  try {
-    // Filtrar solo items con cantidad > 0
-    const items = Object.entries(cantidades)
-      .filter(([, cantidad]) => cantidad > 0)
-      .map(([nombre, cantidad]) => ({ item_name: nombre, quantity: cantidad }))
+  // Verificar si el item ya existe
+  const itemExistente = itemsAgregados.value.find(
+    (item) => item.id_item === itemSeleccionado.value.id_item,
+  )
 
-    if (items.length === 0) {
-      $q.notify({
-        type: 'warning',
-        message: 'Debes agregar al menos un item con cantidad mayor a 0',
-      })
-      return
+  if (itemExistente) {
+    itemExistente.cantidad += cantidad.value
+    console.log('Item actualizado:', itemExistente)
+  } else {
+    const nuevoItem = {
+      id_item: itemSeleccionado.value.id_item,
+      nombre: itemSeleccionado.value.nombre,
+      cantidad: cantidad.value,
     }
+    console.log('Nuevo item agregado:', nuevoItem)
+    console.log('Item seleccionado completo:', itemSeleccionado.value)
+    itemsAgregados.value.push(nuevoItem)
+  }
 
-    await registerInventory('montaña', items)
+  Notify.create({
+    type: 'positive',
+    message: `${itemSeleccionado.value.nombre} agregado`,
+  })
 
-    $q.notify({
+  // Limpiar formulario
+  itemSeleccionado.value = null
+  cantidad.value = 1
+}
+
+// Remover item de la lista
+const eliminarItem = (index) => {
+  const item = itemsAgregados.value[index]
+  itemsAgregados.value.splice(index, 1)
+  Notify.create({
+    type: 'warning',
+    message: `${item.nombre} eliminado`,
+  })
+}
+
+// Registrar botiquín
+const registrarBotiquin = async () => {
+  if (itemsAgregados.value.length === 0) {
+    Notify.create({
+      type: 'warning',
+      message: 'Agrega al menos un item antes de registrar',
+    })
+    return
+  }
+
+  if (!user.value) {
+    Notify.create({
+      type: 'warning',
+      message: 'Debes estar autenticado para registrar un botiquín',
+    })
+    return
+  }
+
+  // Confirmación antes de registrar
+  const confirmacion = confirm(
+    `¿Confirmas el registro del botiquín de montaña con ${itemsAgregados.value.length} items?`,
+  )
+
+  if (!confirmacion) {
+    Notify.create({
+      type: 'info',
+      message: 'Registro cancelado',
+    })
+    return
+  }
+
+  try {
+    console.log('Iniciando registro desde formulario MONTAÑA:', {
+      tipo: 'montaña',
+      items: itemsAgregados.value,
+      usuario: user.value.email,
+    })
+
+    // Verificar que los items tengan la estructura correcta
+    itemsAgregados.value.forEach((item, index) => {
+      console.log(`Item ${index + 1}:`, {
+        id_item: item.id_item,
+        nombre: item.nombre,
+        cantidad: item.cantidad,
+      })
+    })
+
+    await registrarInventario('montaña', itemsAgregados.value)
+
+    Notify.create({
       type: 'positive',
-      message: 'Inventario guardado exitosamente',
+      message: 'Botiquín de montaña registrado exitosamente',
     })
 
-    // Limpiar cantidades
-    montañaItems.forEach((item) => (cantidades[item] = 0))
+    // Limpiar formulario
+    itemsAgregados.value = []
 
-    // Recargar historial y mostrarlo
-    await loadHistorial()
-    mostrarHistorial.value = true
-
-    // Scroll al historial
-    setTimeout(() => {
-      const historialElement = document.querySelector('.historial-section')
-      if (historialElement) {
-        historialElement.scrollIntoView({ behavior: 'smooth' })
-      }
-    }, 100)
-  } catch (error) {
-    console.error('Error al guardar inventario:', error)
-    $q.notify({
+    // Redirigir al historial
+    router.push('/historial-botiquin')
+  } catch (err) {
+    console.error('Error en el formulario MONTAÑA:', err)
+    Notify.create({
       type: 'negative',
-      message: 'Error al guardar el inventario: ' + error.message,
+      message: `Error al registrar el botiquín: ${err.message}`,
     })
-  } finally {
-    loading.value = false
   }
 }
 
-async function generarOrdenCompra() {
-  if (!user.value) {
-    $q.notify({
-      type: 'negative',
-      message: 'Debes estar autenticado para generar una orden',
+// Ir a compras
+const irACompras = async () => {
+  if (itemsAgregados.value.length === 0) {
+    Notify.create({
+      type: 'warning',
+      message: 'Agrega items antes de generar orden de compra',
     })
     return
   }
 
-  loading.value = true
   try {
-    // Solo insumos con cantidad > 0
-    const items = Object.entries(cantidades)
-      .filter(([, cantidad]) => cantidad > 0)
-      .map(([nombre, cantidad]) => ({ item_name: nombre, quantity: cantidad }))
-
-    if (items.length === 0) {
-      $q.notify({
-        type: 'warning',
-        message: 'Debes seleccionar al menos un item para la orden de compra',
-      })
-      return
-    }
-
-    // Obtener precios
-    const prices = await getItemPrices(items.map((item) => item.item_name))
-
-    // Combinar items con precios
-    const itemsWithPrices = items.map((item) => {
-      const price = prices.find((p) => p.item_name === item.item_name)?.price || 0
-      return {
-        ...item,
-        price,
-        total: item.quantity * price,
-      }
-    })
-
-    const total = itemsWithPrices.reduce((sum, item) => sum + item.total, 0)
-
-    ordenCompraItems.value = itemsWithPrices
-    totalCompra.value = total
-    showOrderModal.value = true
-  } catch (error) {
-    console.error('Error al generar orden:', error)
-    $q.notify({
-      type: 'negative',
-      message: 'Error al generar la orden: ' + error.message,
-    })
-  } finally {
-    loading.value = false
-  }
-}
-
-async function confirmarOrden(contactInfo) {
-  loading.value = true
-  try {
-    const orderData = {
-      type: 'montaña',
-      items: ordenCompraItems.value,
-      total_amount: totalCompra.value,
-      contact_name: contactInfo.name,
-      contact_phone: contactInfo.phone,
-      contact_email: contactInfo.email,
-    }
-
-    await createPurchaseOrder(orderData)
-
-    $q.notify({
+    await crearOrdenCompra(itemsAgregados.value)
+    Notify.create({
       type: 'positive',
       message: 'Orden de compra creada exitosamente',
     })
-
-    showOrderModal.value = false
-
-    // Limpiar cantidades
-    montañaItems.forEach((item) => (cantidades[item] = 0))
-
-    // Redirigir al historial de compras
-    setTimeout(() => {
-      router.push('/historial-compras')
-    }, 1000)
-  } catch (error) {
-    console.error('Error al confirmar orden:', error)
-    $q.notify({
+  } catch (err) {
+    console.error('Error al crear orden:', err)
+    Notify.create({
       type: 'negative',
-      message: 'Error al crear la orden: ' + error.message,
-    })
-  } finally {
-    loading.value = false
-  }
-}
-
-async function loadHistorial() {
-  if (!user.value) return
-
-  try {
-    historial.value = await getUserInventoryHistory('montaña')
-  } catch (error) {
-    console.error('Error al cargar historial:', error)
-    $q.notify({
-      type: 'negative',
-      message: 'Error al cargar el historial',
+      message: 'Error al crear la orden de compra',
     })
   }
 }
-
-onMounted(async () => {
-  if (mostrarHistorial.value) {
-    await loadHistorial()
-  }
-})
-
-// Watch para cargar historial cuando se muestre
-watch(
-  () => mostrarHistorial.value,
-  async (newVal) => {
-    if (newVal) {
-      await loadHistorial()
-    }
-  },
-)
 </script>
 
 <style scoped>
-.form-grid {
-  background: #fff;
+.q-card {
   border-radius: 12px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
-  padding: 32px 24px;
-  max-width: 700px;
-  width: 100%;
-  overflow: visible;
-  margin: 40px auto;
 }
-.grid-container {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px 32px;
-}
-.grid-item {
-  width: 100%;
-}
-.page-scroll {
-  min-height: 100vh;
-  align-items: flex-start;
-  overflow-y: auto;
-  height: auto;
-  max-height: none;
-  width: 100vw;
-  box-sizing: border-box;
-}
-.q-layout__section--center {
-  overflow: visible !important;
-}
+
 .q-page {
-  overflow-y: auto !important;
-  height: auto !important;
-  min-height: 100vh !important;
+  min-height: calc(100vh - 50px);
 }
 </style>
