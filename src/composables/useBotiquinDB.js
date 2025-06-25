@@ -13,12 +13,38 @@ export function useBotiquinDB() {
     hogar: [],
     industria: [],
     montania: [],
+    montaña: [], // Agregado para compatibilidad
     oficina: [],
   })
 
   // Inventario actual del usuario
   const inventarioActual = ref([])
   const historialInventarios = ref([])
+
+  // Función auxiliar para verificar/obtener usuario autenticado
+  const verificarAutenticacion = async () => {
+    if (user.value) {
+      return user.value
+    }
+
+    console.log('🔄 Verificando autenticación...')
+    try {
+      const { getCurrentSession } = useAuth()
+      const session = await getCurrentSession()
+
+      if (session?.user) {
+        user.value = session.user
+        console.log('✅ Usuario autenticado encontrado:', session.user.email)
+        return session.user
+      } else {
+        console.log('❌ No hay sesión activa')
+        return null
+      }
+    } catch (error) {
+      console.error('❌ Error verificando autenticación:', error)
+      return null
+    }
+  }
 
   // Función auxiliar para obtener el ID del usuario interno
   const obtenerIdUsuarioInterno = async () => {
@@ -72,10 +98,24 @@ export function useBotiquinDB() {
       error.value = null
 
       console.log(`🔄 Cargando items para tipo: ${tipo}`)
+
+      // Verificar autenticación antes de cargar items
+      const currentUser = await verificarAutenticacion()
+      if (!currentUser) {
+        console.log('⚠️ Usuario no autenticado, pero continuando con carga de items...')
+        // Continuamos con la carga de items aunque no esté autenticado
+        // ya que los items son públicos
+      } else {
+        console.log(`✅ Usuario autenticado: ${currentUser.email}`)
+      }
+
       console.log(`📋 Estado inicial de itemsDisponibles.${tipo}:`, itemsDisponibles.value[tipo])
 
+      // Mapear montaña a montania para el nombre de la tabla
+      const tableName = tipo === 'montaña' ? 'montania' : tipo
+
       const { data, error: fetchError } = await supabase
-        .from(`${tipo}_items`)
+        .from(`${tableName}_items`)
         .select('*')
         .order('nombre')
 
@@ -84,12 +124,12 @@ export function useBotiquinDB() {
 
         // Si hay error de tabla no encontrada, intentar poblar datos
         if (fetchError.code === 'PGRST106' || fetchError.message.includes('does not exist')) {
-          console.log(`⚠️ Tabla ${tipo}_items no existe o está vacía, poblando datos...`)
+          console.log(`⚠️ Tabla ${tableName}_items no existe o está vacía, poblando datos...`)
           await poblarDatosEjemplo()
 
           // Intentar cargar de nuevo
           const { data: retryData, error: retryError } = await supabase
-            .from(`${tipo}_items`)
+            .from(`${tableName}_items`)
             .select('*')
             .order('nombre')
 
@@ -98,6 +138,14 @@ export function useBotiquinDB() {
           }
 
           itemsDisponibles.value[tipo] = retryData || []
+
+          // Si es montaña, también poblar montania para compatibilidad
+          if (tipo === 'montaña') {
+            itemsDisponibles.value.montania = retryData || []
+          } else if (tipo === 'montania') {
+            itemsDisponibles.value.montaña = retryData || []
+          }
+
           console.log(
             `📊 Estado final de itemsDisponibles.${tipo} (retry):`,
             itemsDisponibles.value[tipo],
@@ -119,6 +167,14 @@ export function useBotiquinDB() {
         const { data: newData } = await supabase.from(`${tipo}_items`).select('*').order('nombre')
 
         itemsDisponibles.value[tipo] = newData || []
+
+        // Si es montaña, también poblar montania para compatibilidad
+        if (tipo === 'montaña') {
+          itemsDisponibles.value.montania = newData || []
+        } else if (tipo === 'montania') {
+          itemsDisponibles.value.montaña = newData || []
+        }
+
         console.log(
           `📊 Estado final de itemsDisponibles.${tipo} (después de poblar):`,
           itemsDisponibles.value[tipo],
@@ -127,6 +183,14 @@ export function useBotiquinDB() {
       }
 
       itemsDisponibles.value[tipo] = data || []
+
+      // Si es montaña, también poblar montania para compatibilidad
+      if (tipo === 'montaña') {
+        itemsDisponibles.value.montania = data || []
+      } else if (tipo === 'montania') {
+        itemsDisponibles.value.montaña = data || []
+      }
+
       console.log(`📊 Estado final de itemsDisponibles.${tipo}:`, itemsDisponibles.value[tipo])
 
       return data
@@ -139,103 +203,16 @@ export function useBotiquinDB() {
     }
   }
 
-  // Función para poblar tablas con datos de ejemplo
+  // Función para poblar tablas con datos de ejemplo (solo si están vacías)
   const poblarDatosEjemplo = async () => {
-    console.log('🌱 Poblando datos de ejemplo...')
+    console.log('🌱 Verificando si necesita poblar datos de ejemplo...')
 
-    const itemsEjemplo = {
-      hogar: [
-        'Termómetro digital',
-        'Gasas estériles grandes',
-        'Vendas elásticas variadas',
-        'Alcohol isopropílico 70%',
-        'Algodón hidrófilo',
-        'Curitas variadas',
-        'Tijeras médicas',
-        'Pinzas de precisión',
-        'Guantes de nitrilo',
-        'Desinfectante',
-        'Ibuprofeno 400mg',
-        'Paracetamol 500mg',
-        'Antihistamínico (loratadina)',
-        'Pomada antibiótica',
-        'Suero fisiológico',
-      ],
-      escolar: [
-        'Termómetro digital',
-        'Gasas estériles',
-        'Vendas elásticas',
-        'Alcohol isopropílico',
-        'Algodón',
-        'Curitas',
-        'Tijeras pequeñas',
-        'Pinzas',
-        'Guantes desechables',
-        'Desinfectante en spray',
-        'Analgésicos (ibuprofeno)',
-        'Antihistamínicos',
-        'Crema antibiótica',
-        'Suero fisiológico',
-        'Bolsa de hielo instantáneo',
-      ],
-      oficina: [
-        'Termómetro infrarrojo',
-        'Gasas estériles',
-        'Vendas adhesivas',
-        'Alcohol en gel',
-        'Algodón',
-        'Curitas profesionales',
-        'Tijeras de oficina',
-        'Pinzas metálicas',
-        'Guantes desechables',
-        'Desinfectante de manos',
-        'Analgésicos básicos',
-        'Antiácidos',
-        'Pomada para quemaduras',
-        'Gotas para ojos',
-        'Spray desinfectante',
-      ],
-      industria: [
-        'Termómetro industrial',
-        'Gasas estériles de gran tamaño',
-        'Vendas compresivas',
-        'Alcohol industrial',
-        'Algodón industrial',
-        'Parches hemostáticos',
-        'Tijeras trauma',
-        'Pinzas quirúrgicas',
-        'Guantes de alta resistencia',
-        'Desinfectante industrial',
-        'Analgésicos potentes',
-        'Antiespasmódicos',
-        'Crema para quemaduras químicas',
-        'Suero fisiológico en ampolla',
-        'Manta ignífuga',
-      ],
-      montania: [
-        'Termómetro resistente',
-        'Gasas impermeables',
-        'Vendas cohesivas',
-        'Alcohol en sachets',
-        'Algodón compacto',
-        'Parches de emergencia',
-        'Tijeras multiuso',
-        'Pinzas multiherramienta',
-        'Guantes térmicos',
-        'Toallitas desinfectantes',
-        'Analgésicos de altura',
-        'Medicamento para mal de altura',
-        'Crema solar factor 50+',
-        'Suero en polvo',
-        'Manta térmica reflectante',
-      ],
-    }
+    // Como la BD ya tiene datos insertados, solo verificamos que existan
+    // No insertamos datos de ejemplo para evitar duplicados
+    const tipos = ['hogar', 'escolar', 'oficina', 'industria', 'montania']
 
-    for (const [tipo, items] of Object.entries(itemsEjemplo)) {
+    for (const tipo of tipos) {
       try {
-        console.log(`📝 Poblando ${tipo}_items...`)
-
-        // Verificar si ya hay datos
         const { data: existingData } = await supabase
           .from(`${tipo}_items`)
           .select('id_item')
@@ -243,20 +220,11 @@ export function useBotiquinDB() {
 
         if (existingData && existingData.length > 0) {
           console.log(`✅ ${tipo}_items ya tiene datos, saltando...`)
-          continue
-        }
-
-        // Insertar datos
-        const itemsParaInsertar = items.map((nombre) => ({ nombre }))
-        const { error } = await supabase.from(`${tipo}_items`).insert(itemsParaInsertar)
-
-        if (error) {
-          console.error(`❌ Error poblando ${tipo}_items:`, error)
         } else {
-          console.log(`✅ ${tipo}_items poblado con ${items.length} items`)
+          console.log(`⚠️ ${tipo}_items está vacía - la BD debería tener datos predefinidos`)
         }
       } catch (error) {
-        console.error(`💥 Error procesando ${tipo}:`, error)
+        console.error(`💥 Error verificando ${tipo}:`, error)
       }
     }
   }
@@ -264,43 +232,42 @@ export function useBotiquinDB() {
   // Registrar nuevo inventario
   const registrarInventario = async (tipo, items) => {
     console.log('=== INICIO REGISTRO INVENTARIO ===')
-    console.log('Estado de autenticación:', {
-      user: user.value,
-      userEmail: user.value?.email,
-      userExists: !!user.value,
-    })
 
-    // Intentar obtener la sesión actual si no hay usuario
-    if (!user.value) {
-      console.log('Usuario no encontrado, obteniendo sesión actual...')
+    // Verificar autenticación de manera más robusta
+    let currentUser = user.value
+
+    if (!currentUser) {
+      console.log('👤 Usuario no encontrado en estado local, obteniendo sesión actual...')
       try {
         const { getCurrentSession } = useAuth()
         const session = await getCurrentSession()
-        console.log('Sesión obtenida:', {
+        console.log('📊 Sesión obtenida:', {
           hasSession: !!session,
           hasUser: !!session?.user,
           userEmail: session?.user?.email,
         })
 
-        // Verificar si ahora tenemos usuario
-        console.log('Usuario después de obtener sesión:', user.value)
-
-        if (!user.value && session?.user) {
-          // Forzar actualización del usuario directamente
+        if (session?.user) {
+          currentUser = session.user
+          // Actualizar el estado local del usuario
           user.value = session.user
-          console.log('Usuario actualizado directamente:', user.value.email)
+          console.log('✅ Usuario actualizado desde sesión:', currentUser.email)
         }
       } catch (sessionError) {
-        console.error('Error obteniendo sesión:', sessionError)
+        console.error('❌ Error obteniendo sesión:', sessionError)
       }
     }
 
-    if (!user.value) {
-      console.error('❌ Usuario no autenticado después de intentar restaurar sesión')
-      throw new Error('Usuario no autenticado. Por favor, cierra sesión y vuelve a iniciar sesión.')
+    // Si aún no hay usuario después de intentar obtener la sesión
+    if (!currentUser) {
+      console.error('❌ No se pudo obtener información del usuario autenticado')
+      const errorMsg =
+        'Debes estar autenticado para registrar un botiquín. Por favor, inicia sesión primero.'
+      error.value = errorMsg
+      throw new Error(errorMsg)
     }
 
-    console.log('✅ Usuario autenticado:', user.value.email)
+    console.log('✅ Usuario autenticado confirmado:', currentUser.email)
 
     try {
       loading.value = true
@@ -309,7 +276,7 @@ export function useBotiquinDB() {
       console.log('📝 Iniciando registro de inventario:', {
         tipo,
         items,
-        usuario: user.value.email,
+        usuario: currentUser.email,
       })
 
       // Obtener ID del usuario interno
@@ -412,11 +379,17 @@ export function useBotiquinDB() {
 
   // Cargar historial de inventarios del usuario
   const cargarHistorialInventarios = async () => {
-    if (!user.value) return []
+    const currentUser = await verificarAutenticacion()
+    if (!currentUser) {
+      console.log('❌ No hay usuario autenticado para cargar historial')
+      return []
+    }
 
     try {
       loading.value = true
       error.value = null
+
+      console.log('=== CARGANDO HISTORIAL DE INVENTARIOS ===')
 
       // Obtener ID del usuario interno
       const id_usuario_interno = await obtenerIdUsuarioInterno()
@@ -436,6 +409,8 @@ export function useBotiquinDB() {
 
       if (fetchError) throw fetchError
 
+      console.log('📥 Datos RAW recibidos de la BD:', data)
+
       // Procesar datos para incluir nombres de items
       const historialProcesado = []
 
@@ -443,9 +418,12 @@ export function useBotiquinDB() {
         const detallesConNombres = []
 
         for (const detalle of registro.detalle_inventario) {
+          // Mapear nombre de tabla para montaña/montania
+          const tableName = detalle.tipo_kit === 'montaña' ? 'montania' : detalle.tipo_kit
+
           // Obtener nombre del item según el tipo
           const { data: itemData } = await supabase
-            .from(`${detalle.tipo_kit}_items`)
+            .from(`${tableName}_items`)
             .select('nombre')
             .eq('id_item', detalle.id_item)
             .single()
@@ -462,8 +440,75 @@ export function useBotiquinDB() {
         })
       }
 
-      historialInventarios.value = historialProcesado
-      return historialProcesado
+      console.log('📋 Historial procesado (antes de filtrar duplicados):', historialProcesado)
+
+      // Filtrar duplicados - mantener solo botiquines únicos válidos
+      const botiquinesUnicos = new Map()
+      const historialFiltrado = []
+
+      for (const registro of historialProcesado) {
+        // Crear clave única basada en el contenido del botiquín (tipo_kit + items + cantidades)
+        const detallesKey = registro.detalle_inventario
+          .map((d) => `${d.tipo_kit}_${d.id_item}_${d.cantidad}`)
+          .sort()
+          .join('|')
+
+        const fechaRegistro = new Date(registro.fecha_registro).getTime()
+
+        // Si ya existe este botiquín, comparar fechas para mantener el más reciente
+        if (botiquinesUnicos.has(detallesKey)) {
+          const existente = botiquinesUnicos.get(detallesKey)
+          const fechaExistente = new Date(existente.fecha_registro).getTime()
+
+          // Si el registro actual es más reciente, reemplazar
+          if (fechaRegistro > fechaExistente) {
+            console.log(`🔄 Reemplazando duplicado más antiguo:`, {
+              anterior: existente.id_registro,
+              nuevo: registro.id_registro,
+              fechaAnterior: existente.fecha_registro,
+              fechaNueva: registro.fecha_registro,
+            })
+            botiquinesUnicos.set(detallesKey, registro)
+          } else {
+            console.log(`❌ Descartando duplicado más antiguo:`, {
+              descartado: registro.id_registro,
+              mantenido: existente.id_registro,
+              fechaDescartada: registro.fecha_registro,
+              fechaMantenida: existente.fecha_registro,
+            })
+          }
+        } else {
+          // Validar que el botiquín sea válido (tenga al menos un item)
+          if (registro.detalle_inventario && registro.detalle_inventario.length > 0) {
+            console.log(`✅ Botiquín válido agregado:`, {
+              id: registro.id_registro,
+              fecha: registro.fecha_registro,
+              items: registro.detalle_inventario.length,
+            })
+            botiquinesUnicos.set(detallesKey, registro)
+          } else {
+            console.log(`❌ Descartando botiquín inválido (sin items):`, {
+              id: registro.id_registro,
+              fecha: registro.fecha_registro,
+            })
+          }
+        }
+      }
+
+      // Convertir Map a array y ordenar por fecha descendente
+      historialFiltrado.push(...Array.from(botiquinesUnicos.values()))
+      historialFiltrado.sort((a, b) => new Date(b.fecha_registro) - new Date(a.fecha_registro))
+
+      console.log('🔍 RESUMEN DE FILTRADO:')
+      console.log(`📊 Total registros originales: ${historialProcesado.length}`)
+      console.log(`✅ Botiquines únicos válidos: ${historialFiltrado.length}`)
+      console.log(
+        `❌ Duplicados/inválidos eliminados: ${historialProcesado.length - historialFiltrado.length}`,
+      )
+      console.log('📋 Historial FILTRADO final:', historialFiltrado)
+
+      historialInventarios.value = historialFiltrado
+      return historialFiltrado
     } catch (err) {
       error.value = err.message
       console.error('Error cargando historial:', err)
@@ -524,7 +569,11 @@ export function useBotiquinDB() {
 
   // Obtener inventario actual del usuario por tipo
   const obtenerInventarioActual = async (tipo) => {
-    if (!user.value) return null
+    const currentUser = await verificarAutenticacion()
+    if (!currentUser) {
+      console.log('❌ No hay usuario autenticado para obtener inventario actual')
+      return null
+    }
 
     try {
       loading.value = true
@@ -556,9 +605,12 @@ export function useBotiquinDB() {
         const detallesConNombres = []
 
         for (const detalle of data.detalle_inventario) {
+          // Mapear nombre de tabla para montaña/montania
+          const tableName = detalle.tipo_kit === 'montaña' ? 'montania' : detalle.tipo_kit
+
           // Obtener nombre del item según el tipo
           const { data: itemData } = await supabase
-            .from(`${detalle.tipo_kit}_items`)
+            .from(`${tableName}_items`)
             .select('nombre')
             .eq('id_item', detalle.id_item)
             .single()
@@ -586,14 +638,37 @@ export function useBotiquinDB() {
   }
 
   // Crear orden de compra
-  const crearOrdenCompra = async (items) => {
-    if (!user.value) {
-      throw new Error('Usuario no autenticado')
+  const crearOrdenCompra = async (items, tipoKit) => {
+    // Verificar autenticación de manera más robusta
+    let currentUser = user.value
+
+    if (!currentUser) {
+      console.log('👤 Usuario no encontrado para orden de compra, obteniendo sesión...')
+      try {
+        const { getCurrentSession } = useAuth()
+        const session = await getCurrentSession()
+
+        if (session?.user) {
+          currentUser = session.user
+          user.value = session.user
+          console.log('✅ Usuario actualizado para orden de compra:', currentUser.email)
+        }
+      } catch (sessionError) {
+        console.error('❌ Error obteniendo sesión para orden de compra:', sessionError)
+      }
+    }
+
+    if (!currentUser) {
+      const errorMsg = 'Debes estar autenticado para crear una orden de compra.'
+      error.value = errorMsg
+      throw new Error(errorMsg)
     }
 
     try {
       loading.value = true
       error.value = null
+
+      console.log('📦 Creando orden de compra:', { items, tipoKit, usuario: currentUser.email })
 
       // Obtener ID del usuario interno
       const id_usuario_interno = await obtenerIdUsuarioInterno()
@@ -609,18 +684,26 @@ export function useBotiquinDB() {
 
       if (compraError) throw compraError
 
-      // Crear detalles de la compra
+      console.log('✅ Registro de compra creado:', compra)
+
+      // Crear detalles de la compra - asegurar que tipo_kit esté incluido
       const detalles = items.map((item) => ({
         id_compra: compra.id_compra,
-        tipo_kit: item.tipo_kit,
+        tipo_kit: tipoKit, // Usar el tipo pasado como parámetro
         id_item: item.id_item,
         cantidad: item.cantidad,
       }))
 
+      console.log('📋 Detalles de compra a insertar:', detalles)
+
       const { error: detallesError } = await supabase.from('detalle_compras').insert(detalles)
 
-      if (detallesError) throw detallesError
+      if (detallesError) {
+        console.error('❌ Error insertando detalles de compra:', detallesError)
+        throw detallesError
+      }
 
+      console.log('✅ Orden de compra creada exitosamente')
       return compra
     } catch (err) {
       error.value = err.message
@@ -637,6 +720,7 @@ export function useBotiquinDB() {
     itemsDisponibles,
     inventarioActual,
     historialInventarios,
+    verificarAutenticacion,
     cargarItemsDisponibles,
     registrarInventario,
     actualizarInventario,

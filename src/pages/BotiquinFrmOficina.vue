@@ -120,15 +120,22 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { Notify } from 'quasar'
+import { useQuasar } from 'quasar'
 import { useRouter } from 'vue-router'
 import { useBotiquinDB } from '../composables/useBotiquinDB.js'
 import { useAuth } from '../composables/useAuth.js'
 
+const $q = useQuasar()
 const router = useRouter()
 const { user } = useAuth()
-const { loading, itemsDisponibles, cargarItemsDisponibles, registrarInventario, crearOrdenCompra } =
-  useBotiquinDB()
+const {
+  loading,
+  itemsDisponibles,
+  cargarItemsDisponibles,
+  registrarInventario,
+  crearOrdenCompra,
+  verificarAutenticacion,
+} = useBotiquinDB()
 
 // Variables para el formulario
 const itemSeleccionado = ref(null)
@@ -137,15 +144,51 @@ const itemsAgregados = ref([])
 
 // Cargar items disponibles al montar el componente
 onMounted(async () => {
-  console.log('Cargando items de oficina...')
-  await cargarItemsDisponibles('oficina')
-  console.log('Items de oficina cargados:', itemsDisponibles.oficina)
+  console.log('🔍 Iniciando carga de página BotiquinFrmOficina...')
+
+  // Verificar autenticación primero
+  try {
+    console.log('🔐 Verificando autenticación...')
+    const currentUser = await verificarAutenticacion()
+    if (currentUser) {
+      console.log('✅ Usuario autenticado:', currentUser.email)
+    } else {
+      console.log('⚠️ Usuario no autenticado - redirigiendo al login')
+      $q.notify({
+        type: 'warning',
+        message: 'Debes iniciar sesión para acceder a esta página',
+      })
+      router.push('/')
+      return
+    }
+  } catch (authError) {
+    console.error('❌ Error verificando autenticación:', authError)
+    $q.notify({
+      type: 'negative',
+      message: 'Error verificando autenticación',
+    })
+    router.push('/')
+    return
+  }
+
+  // Cargar items disponibles
+  try {
+    console.log('📋 Cargando items de oficina...')
+    await cargarItemsDisponibles('oficina')
+    console.log('✅ Items de oficina cargados:', itemsDisponibles.oficina)
+  } catch (error) {
+    console.error('❌ Error cargando items:', error)
+    $q.notify({
+      type: 'negative',
+      message: 'Error cargando items disponibles',
+    })
+  }
 })
 
 // Agregar item a la lista
 const agregarItem = () => {
   if (!itemSeleccionado.value || !cantidad.value || cantidad.value <= 0) {
-    Notify.create({
+    $q.notify({
       type: 'warning',
       message: 'Selecciona un item y especifica una cantidad válida',
     })
@@ -171,7 +214,7 @@ const agregarItem = () => {
     itemsAgregados.value.push(nuevoItem)
   }
 
-  Notify.create({
+  $q.notify({
     type: 'positive',
     message: `${itemSeleccionado.value.nombre} agregado`,
   })
@@ -184,7 +227,7 @@ const agregarItem = () => {
 // Remover item de la lista
 const removerItem = (index) => {
   itemsAgregados.value.splice(index, 1)
-  Notify.create({
+  $q.notify({
     type: 'info',
     message: 'Item removido',
   })
@@ -193,7 +236,7 @@ const removerItem = (index) => {
 // Registrar botiquín en la base de datos
 const registrarBotiquin = async () => {
   if (itemsAgregados.value.length === 0) {
-    Notify.create({
+    $q.notify({
       type: 'warning',
       message: 'Agrega al menos un item antes de registrar',
     })
@@ -201,7 +244,7 @@ const registrarBotiquin = async () => {
   }
 
   if (!user.value) {
-    Notify.create({
+    $q.notify({
       type: 'warning',
       message: 'Debes estar autenticado para registrar un botiquín',
     })
@@ -214,7 +257,7 @@ const registrarBotiquin = async () => {
   )
 
   if (!confirmacion) {
-    Notify.create({
+    $q.notify({
       type: 'info',
       message: 'Registro cancelado',
     })
@@ -239,7 +282,7 @@ const registrarBotiquin = async () => {
 
     await registrarInventario('oficina', itemsAgregados.value)
 
-    Notify.create({
+    $q.notify({
       type: 'positive',
       message: 'Botiquín de oficina registrado exitosamente',
     })
@@ -251,7 +294,7 @@ const registrarBotiquin = async () => {
     router.push('/historial-botiquin')
   } catch (err) {
     console.error('Error en el formulario OFICINA:', err)
-    Notify.create({
+    $q.notify({
       type: 'negative',
       message: `Error al registrar el botiquín: ${err.message}`,
     })
@@ -261,7 +304,7 @@ const registrarBotiquin = async () => {
 // Ir a compras
 const irACompras = async () => {
   if (itemsAgregados.value.length === 0) {
-    Notify.create({
+    $q.notify({
       type: 'warning',
       message: 'Agrega items antes de generar orden de compra',
     })
@@ -269,14 +312,14 @@ const irACompras = async () => {
   }
 
   try {
-    await crearOrdenCompra(itemsAgregados.value)
-    Notify.create({
+    await crearOrdenCompra(itemsAgregados.value, 'oficina')
+    $q.notify({
       type: 'positive',
       message: 'Orden de compra creada exitosamente',
     })
   } catch (err) {
     console.error('Error al crear orden:', err)
-    Notify.create({
+    $q.notify({
       type: 'negative',
       message: 'Error al crear la orden de compra',
     })
