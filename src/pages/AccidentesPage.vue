@@ -6,17 +6,12 @@
         <q-btn flat round dense icon="arrow_back" @click="$router.go(-1)" />
         <q-toolbar-title class="text-white"> Minutos de Vida </q-toolbar-title>
 
+        <q-btn flat label="Inicio" class="q-ml-md text-white" @click="$router.push('/principal')" />
         <q-btn
           flat
-          label="Quiénes Somos"
+          label="Crear Botiquín"
           class="q-ml-md text-white"
-          @click="$router.push('/principal')"
-        />
-        <q-btn
-          flat
-          label="Contactos"
-          class="q-ml-md text-white"
-          @click="$router.push('/contactos')"
+          @click="$router.push('/botiquin-opciones')"
         />
         <q-btn
           flat
@@ -172,30 +167,17 @@ const logout = async () => {
 </script>
 
 <style scoped>
-.page-container {
+.page-container centered {
   display: flex;
   flex-direction: column;
-  height: 100vh;
-}
-
-.main-content {
-  flex: 1;
-  display: flex;
   justify-content: center;
   align-items: center;
-  background: url('./ImagenesTipos/background.avif') no-repeat center center;
-  background-size: cover;
+  top: 50px;
 }
-
-.background-image.expanded {
-  width: 100%;
-  height: 100%;
-}
-
 .button-container {
   display: flex;
   flex-wrap: wrap;
-  gap: 30px; /* Adjust spacing for larger buttons */
+  gap: 20px; /* Reduced spacing for smaller buttons */
   justify-content: center; /* Center buttons horizontally */
   align-items: center; /* Center buttons vertically */
 }
@@ -203,11 +185,11 @@ const logout = async () => {
 .row {
   display: flex;
   justify-content: center;
-  margin-bottom: 20px;
+  margin-bottom: 15px;
 }
 
 .button-image {
-  margin: 20px;
+  margin: 10px;
   border: 2px solid #007bff;
   border-radius: 10px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
@@ -229,8 +211,8 @@ const logout = async () => {
 }
 
 .img-button {
-  width: 250px;
-  height: 250px;
+  width: 150px;
+  height: 150px;
   object-fit: cover;
   border-radius: 10px;
   transition: transform 0.3s ease;
@@ -249,28 +231,9 @@ const logout = async () => {
   margin-top: 10px;
 }
 
-.footer {
-  width: 100%;
-  background-color: #002366;
-  color: white;
-  text-align: center;
-  padding: 10px;
-  position: fixed;
-  bottom: 0;
-  z-index: 1000;
-}
-
 .fixed-footer {
   position: fixed;
   bottom: 0;
-}
-
-.centered {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  flex-direction: column;
-  height: 100%;
 }
 
 .components-section {
@@ -297,19 +260,5 @@ const logout = async () => {
   justify-content: center;
   align-items: center;
   z-index: 1000;
-}
-
-/* Center the Recomendacion component more precisely */
-.recomendacion-panel {
-  width: 40%;
-  height: 40%;
-  background-color: white;
-  border-radius: 10px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  padding: 30px;
 }
 </style>

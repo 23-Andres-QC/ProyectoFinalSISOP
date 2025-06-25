@@ -4,17 +4,12 @@
       <q-toolbar>
         <q-toolbar-title class="text-white"> Minutos de Vida </q-toolbar-title>
 
+        <q-btn flat label="Inicio" class="q-ml-md text-white" @click="$router.push('/principal')" />
         <q-btn
           flat
-          label="Quiénes Somos"
+          label="Crear Botiquín"
           class="q-ml-md text-white"
-          @click="$router.push('/principal')"
-        />
-        <q-btn
-          flat
-          label="Contactos"
-          class="q-ml-md text-white"
-          @click="$router.push('/contactos')"
+          @click="$router.push('/botiquin-opciones')"
         />
         <q-btn
           flat

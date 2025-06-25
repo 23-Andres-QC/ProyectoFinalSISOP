@@ -15,17 +15,12 @@
         <q-toolbar-title class="text-white">Botiquín Escolar</q-toolbar-title>
 
         <!-- Enlaces del header -->
+        <q-btn flat label="Inicio" class="q-ml-md text-white" @click="$router.push('/principal')" />
         <q-btn
           flat
-          label="Quiénes Somos"
+          label="Crear Botiquín"
           class="q-ml-md text-white"
-          @click="$router.push('/principal')"
-        />
-        <q-btn
-          flat
-          label="Contactos"
-          class="q-ml-md text-white"
-          @click="$router.push('/contactos')"
+          @click="$router.push('/botiquin-opciones')"
         />
         <q-btn
           flat
@@ -291,6 +286,8 @@ onMounted(async () => {
       $q.notify({
         type: 'warning',
         message: 'Debes iniciar sesión para acceder a esta página',
+        position: 'center',
+        timeout: 3000,
       })
       router.push('/')
       return
@@ -300,6 +297,8 @@ onMounted(async () => {
     $q.notify({
       type: 'negative',
       message: 'Error verificando autenticación',
+      position: 'center',
+      timeout: 3000,
     })
     router.push('/')
     return
@@ -315,6 +314,8 @@ onMounted(async () => {
     $q.notify({
       type: 'negative',
       message: 'Error cargando items disponibles',
+      position: 'center',
+      timeout: 3000,
     })
   }
 
@@ -328,6 +329,8 @@ onMounted(async () => {
     $q.notify({
       type: 'negative',
       message: 'Error cargando historial de inventarios',
+      position: 'center',
+      timeout: 3000,
     })
   }
 
@@ -347,6 +350,8 @@ onMounted(async () => {
       $q.notify({
         type: 'warning',
         message: 'No se encontró el inventario para editar',
+        position: 'center',
+        timeout: 3000,
       })
     }
   }
@@ -358,6 +363,8 @@ const agregarItem = () => {
     $q.notify({
       type: 'warning',
       message: 'Selecciona un item y especifica una cantidad válida',
+      position: 'center',
+      timeout: 3000,
     })
     return
   }
@@ -371,6 +378,8 @@ const agregarItem = () => {
     $q.notify({
       type: 'warning',
       message: `El item "${itemSeleccionado.value.nombre}" ya está en la lista. Puedes editarlo desde la lista.`,
+      position: 'center',
+      timeout: 3000,
     })
     return
   }
@@ -389,6 +398,8 @@ const agregarItem = () => {
   $q.notify({
     type: 'positive',
     message: `${itemSeleccionado.value.nombre} agregado`,
+    position: 'center',
+    timeout: 2000,
   })
 
   // Limpiar formulario
@@ -403,6 +414,8 @@ const eliminarItem = (index) => {
   $q.notify({
     type: 'warning',
     message: `${item.nombre} eliminado`,
+    position: 'center',
+    timeout: 2000,
   })
 }
 
@@ -412,24 +425,27 @@ const registrarBotiquin = async () => {
     $q.notify({
       type: 'warning',
       message: 'Agrega al menos un item antes de registrar',
+      position: 'center',
+      timeout: 3000,
     })
     return
   }
 
   const accion = modoEdicion.value ? 'actualización' : 'registro'
-  const confirmacion = confirm(
-    `¿Confirmas la ${accion} del botiquín escolar con ${itemsAgregados.value.length} items?`,
-  )
-
-  if (!confirmacion) {
-    $q.notify({
-      type: 'info',
-      message: `${accion.charAt(0).toUpperCase() + accion.slice(1)} cancelado`,
-    })
-    return
-  }
 
   try {
+    await $q.dialog({
+      title: 'Confirmar Registro',
+      message: `¿Confirmas la ${accion} del botiquín escolar con ${itemsAgregados.value.length} items?`,
+      cancel: true,
+      persistent: true,
+      ok: {
+        label: 'Sí, continuar',
+        color: 'primary',
+      },
+    })
+
+    // Si llegamos aquí, el usuario confirmó
     // Verificar que los items tengan la estructura correcta
     itemsAgregados.value.forEach((item, index) => {
       console.log(`Item ${index + 1}:`, {
@@ -445,6 +461,8 @@ const registrarBotiquin = async () => {
         $q.notify({
           type: 'negative',
           message: 'Error: No se puede actualizar, falta el ID del inventario',
+          position: 'center',
+          timeout: 3000,
         })
         return
       }
@@ -460,6 +478,8 @@ const registrarBotiquin = async () => {
       $q.notify({
         type: 'positive',
         message: 'Botiquín escolar actualizado exitosamente',
+        position: 'center',
+        timeout: 3000,
       })
 
       // Salir del modo edición
@@ -479,6 +499,8 @@ const registrarBotiquin = async () => {
       $q.notify({
         type: 'positive',
         message: 'Botiquín escolar registrado exitosamente',
+        position: 'center',
+        timeout: 3000,
       })
 
       // Limpiar formulario
@@ -491,10 +513,23 @@ const registrarBotiquin = async () => {
       router.push('/historial-botiquin')
     }
   } catch (err) {
+    if (err === false || err === undefined) {
+      // Usuario canceló el diálogo
+      $q.notify({
+        type: 'info',
+        message: `${accion.charAt(0).toUpperCase() + accion.slice(1)} cancelado`,
+        position: 'center',
+        timeout: 2000,
+      })
+      return
+    }
+
     console.error(`Error en el formulario ESCOLAR (${accion}):`, err)
     $q.notify({
       type: 'negative',
       message: `Error al ${modoEdicion.value ? 'actualizar' : 'registrar'} el botiquín: ${err.message}`,
+      position: 'center',
+      timeout: 3000,
     })
   }
 }
@@ -532,11 +567,15 @@ const cargarInventarioParaEditar = async (inventario) => {
         $q.notify({
           type: 'positive',
           message: `Cargado inventario del ${formatearFecha(inventario.fecha_creacion)} para edición (${itemsAgregados.value.length} items escolares)`,
+          position: 'center',
+          timeout: 3000,
         })
       } else {
         $q.notify({
           type: 'warning',
           message: 'No se encontraron items escolares en este inventario',
+          position: 'center',
+          timeout: 3000,
         })
       }
     } else {
@@ -544,6 +583,8 @@ const cargarInventarioParaEditar = async (inventario) => {
       $q.notify({
         type: 'warning',
         message: 'No se encontraron items en este inventario',
+        position: 'center',
+        timeout: 3000,
       })
     }
   } catch (error) {
@@ -551,6 +592,8 @@ const cargarInventarioParaEditar = async (inventario) => {
     $q.notify({
       type: 'negative',
       message: 'Error cargando inventario para edición: ' + error.message,
+      position: 'center',
+      timeout: 3000,
     })
   }
 }
@@ -565,6 +608,8 @@ const cancelarEdicion = () => {
   $q.notify({
     type: 'info',
     message: 'Edición cancelada',
+    position: 'center',
+    timeout: 2000,
   })
 
   console.log('🔄 Modo edición cancelado')
@@ -576,30 +621,33 @@ const irACompras = async () => {
     $q.notify({
       type: 'warning',
       message: 'Agrega items antes de generar orden de compra',
-    })
-    return
-  }
-
-  // Confirmación antes de crear la orden
-  const confirmacion = confirm(
-    `¿Confirmas la creación de la orden de compra con ${itemsAgregados.value.length} items?`,
-  )
-
-  if (!confirmacion) {
-    $q.notify({
-      type: 'info',
-      message: 'Orden de compra cancelada',
+      position: 'center',
+      timeout: 3000,
     })
     return
   }
 
   try {
+    // Confirmación antes de crear la orden
+    await $q.dialog({
+      title: 'Confirmar Orden de Compra',
+      message: `¿Confirmas la creación de la orden de compra con ${itemsAgregados.value.length} items?`,
+      cancel: true,
+      persistent: true,
+      ok: {
+        label: 'Sí, crear orden',
+        color: 'primary',
+      },
+    })
+
     console.log('🛒 Creando orden de compra con items:', itemsAgregados.value)
     await crearOrdenCompra(itemsAgregados.value, 'escolar')
 
     $q.notify({
       type: 'positive',
       message: 'Orden de compra creada exitosamente',
+      position: 'center',
+      timeout: 3000,
     })
 
     // Limpiar formulario
@@ -609,10 +657,23 @@ const irACompras = async () => {
     // Redirigir a la página de compras
     router.push('/historial-compras')
   } catch (err) {
+    if (err === false || err === undefined) {
+      // Usuario canceló el diálogo
+      $q.notify({
+        type: 'info',
+        message: 'Orden de compra cancelada',
+        position: 'center',
+        timeout: 2000,
+      })
+      return
+    }
+
     console.error('Error al crear orden:', err)
     $q.notify({
       type: 'negative',
       message: `Error al crear la orden de compra: ${err.message}`,
+      position: 'center',
+      timeout: 3000,
     })
   }
 }

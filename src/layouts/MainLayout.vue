@@ -4,10 +4,8 @@
       <q-toolbar>
         <q-toolbar-title class="text-white"> Minutos de Vida </q-toolbar-title>
 
-        <q-btn flat label="Quiénes Somos" class="q-ml-md text-white" @click="goTo('principal')" />
-        <q-btn flat label="Contactos" class="q-ml-md text-white" @click="goTo('contactos')" />
-
         <!-- Enlaces específicos para usuarios autenticados -->
+
         <q-btn
           v-if="user"
           flat
@@ -24,8 +22,6 @@
           class="q-ml-md text-white"
           @click="goTo('admin/ordenes')"
         />
-
-        <q-btn flat label="Más" class="q-ml-md text-white" @click="goTo('mas')" />
 
         <!-- Botón de cerrar sesión -->
         <q-btn
@@ -68,13 +64,10 @@ onMounted(async () => {
 })
 
 function goTo(route) {
-  // Puedes personalizar las rutas según tu estructura
-  if (route === 'quienes-somos') router.push('/quienes-somos')
-  else if (route === 'ayuda') router.push('/ayuda')
-  else if (route === 'contactos') router.push('/contactos')
-  else if (route === 'historial-compras') router.push('/historial-compras')
+  // Rutas específicas para usuarios autenticados
+  if (route === 'historial-compras') router.push('/historial-compras')
   else if (route === 'admin/ordenes') router.push('/admin/ordenes')
-  else if (route === 'mas') router.push('/mas')
+  else if (route === 'hospital-fast') router.push('/hospital-fast')
 }
 
 const logout = async () => {

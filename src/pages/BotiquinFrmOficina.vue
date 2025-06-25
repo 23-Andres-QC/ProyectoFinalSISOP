@@ -15,23 +15,25 @@
         <q-toolbar-title class="text-white">Botiquín de Oficina</q-toolbar-title>
 
         <!-- Enlaces del header -->
+        <q-btn flat label="Inicio" class="q-ml-md text-white" @click="$router.push('/principal')" />
         <q-btn
           flat
-          label="Quiénes Somos"
+          label="Crear Botiquín"
           class="q-ml-md text-white"
-          @click="$router.push('/principal')"
-        />
-        <q-btn
-          flat
-          label="Contactos"
-          class="q-ml-md text-white"
-          @click="$router.push('/contactos')"
+          @click="$router.push('/botiquin-opciones')"
         />
         <q-btn
           flat
           label="Mis Compras"
           class="q-ml-md text-white"
           @click="$router.push('/historial-compras')"
+        />
+        <q-btn
+          flat
+          icon="logout"
+          label="Cerrar Sesión"
+          class="q-ml-md text-white"
+          @click="logout"
         />
         <q-btn
           flat
@@ -383,19 +385,20 @@ const registrarBotiquin = async () => {
   }
 
   const accion = modoEdicion.value ? 'actualización' : 'registro'
-  const confirmacion = confirm(
-    `¿Confirmas la ${accion} del botiquín de oficina con ${itemsAgregados.value.length} items?`,
-  )
-
-  if (!confirmacion) {
-    $q.notify({
-      type: 'info',
-      message: `${accion.charAt(0).toUpperCase() + accion.slice(1)} cancelado`,
-    })
-    return
-  }
 
   try {
+    await $q.dialog({
+      title: 'Confirmar Registro',
+      message: `¿Confirmas la ${accion} del botiquín de oficina con ${itemsAgregados.value.length} items?`,
+      cancel: true,
+      persistent: true,
+      ok: {
+        label: 'Sí, continuar',
+        color: 'primary',
+      },
+    })
+
+    // Si llegamos aquí, el usuario confirmó
     if (modoEdicion.value) {
       // Verificar que tenemos el ID del inventario
       if (!inventarioEditando.value?.id_registro) {
@@ -403,6 +406,8 @@ const registrarBotiquin = async () => {
         $q.notify({
           type: 'negative',
           message: 'Error: No se puede actualizar, falta el ID del inventario',
+          position: 'center',
+          timeout: 3000,
         })
         return
       }
@@ -418,6 +423,8 @@ const registrarBotiquin = async () => {
       $q.notify({
         type: 'positive',
         message: 'Botiquín de oficina actualizado exitosamente',
+        position: 'center',
+        timeout: 3000,
       })
 
       // Salir del modo edición
@@ -446,6 +453,8 @@ const registrarBotiquin = async () => {
       $q.notify({
         type: 'positive',
         message: 'Botiquín de oficina registrado exitosamente',
+        position: 'center',
+        timeout: 3000,
       })
 
       // Limpiar formulario
@@ -459,10 +468,23 @@ const registrarBotiquin = async () => {
       router.push('/historial-botiquin')
     }
   } catch (err) {
+    if (err === false || err === undefined) {
+      // Usuario canceló el diálogo
+      $q.notify({
+        type: 'info',
+        message: `${accion.charAt(0).toUpperCase() + accion.slice(1)} cancelado`,
+        position: 'center',
+        timeout: 2000,
+      })
+      return
+    }
+
     console.error(`Error en el formulario OFICINA (${accion}):`, err)
     $q.notify({
       type: 'negative',
       message: `Error al ${modoEdicion.value ? 'actualizar' : 'registrar'} el botiquín: ${err.message}`,
+      position: 'center',
+      timeout: 3000,
     })
   }
 }
@@ -541,6 +563,8 @@ const cancelarEdicion = () => {
   $q.notify({
     type: 'info',
     message: 'Edición cancelada',
+    position: 'center',
+    timeout: 2000,
   })
 
   console.log('🔄 Modo edición cancelado')
@@ -552,30 +576,33 @@ const irACompras = async () => {
     $q.notify({
       type: 'warning',
       message: 'Agrega items antes de generar orden de compra',
-    })
-    return
-  }
-
-  // Confirmación antes de crear la orden
-  const confirmacion = confirm(
-    `¿Confirmas la creación de la orden de compra con ${itemsAgregados.value.length} items?`,
-  )
-
-  if (!confirmacion) {
-    $q.notify({
-      type: 'info',
-      message: 'Orden de compra cancelada',
+      position: 'center',
+      timeout: 3000,
     })
     return
   }
 
   try {
+    // Confirmación antes de crear la orden
+    await $q.dialog({
+      title: 'Confirmar Orden de Compra',
+      message: `¿Confirmas la creación de la orden de compra con ${itemsAgregados.value.length} items?`,
+      cancel: true,
+      persistent: true,
+      ok: {
+        label: 'Sí, crear orden',
+        color: 'primary',
+      },
+    })
+
     console.log('🛒 Creando orden de compra con items:', itemsAgregados.value)
     await crearOrdenCompra(itemsAgregados.value, 'oficina')
 
     $q.notify({
       type: 'positive',
       message: 'Orden de compra creada exitosamente',
+      position: 'center',
+      timeout: 3000,
     })
 
     // Limpiar formulario
@@ -585,10 +612,23 @@ const irACompras = async () => {
     // Redirigir a la página de compras/historial de órdenes
     router.push('/historial-compras')
   } catch (err) {
+    if (err === false || err === undefined) {
+      // Usuario canceló el diálogo
+      $q.notify({
+        type: 'info',
+        message: 'Orden de compra cancelada',
+        position: 'center',
+        timeout: 2000,
+      })
+      return
+    }
+
     console.error('Error al crear orden:', err)
     $q.notify({
       type: 'negative',
       message: `Error al crear la orden de compra: ${err.message}`,
+      position: 'center',
+      timeout: 3000,
     })
   }
 }

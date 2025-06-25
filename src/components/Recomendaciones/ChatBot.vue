@@ -1,7 +1,25 @@
 <template>
+  <!--
+    ChatBot contextual para recomendaciones de primeros auxilios
+
+    Características implementadas:
+    - Recibe contexto de recomendaciones anteriores como prop (recomendacionesContext)
+    - Fallback a localStorage si no se proporciona el prop
+    - Siempre usa las recomendaciones anteriores como contexto para nuevas consultas
+    - Indicador visual cuando tiene contexto disponible
+    - Mensajes de bienvenida contextuales
+    - Respuesta directa a consultas sobre el contexto disponible
+    - Limpieza automática del contexto cuando se borran las recomendaciones
+    - Watch reactivo para detectar cambios en las recomendaciones
+  -->
   <div v-if="!isClosed" class="chatbot-wrapper" :class="{ minimized: isMinimized }">
     <div class="chatbot-header">
-      <h2 class="chatbot-title">CONSULTAR</h2>
+      <div class="header-content">
+        <h2 class="chatbot-title">CONSULTAR</h2>
+        <div v-if="hasRecommendationContext" class="context-indicator">
+          📋 Con contexto de recomendaciones
+        </div>
+      </div>
       <div class="chatbot-controls">
         <button @click="newChat" class="control-button">+</button>
         <button @click="minimizeChat" class="control-button">-</button>
@@ -26,18 +44,68 @@
 
 <script>
 export default {
+  props: {
+    recomendacionesContext: {
+      type: Object,
+      default: null,
+    },
+  },
+  computed: {
+    hasRecommendationContext() {
+      return this.recomendacionesContext || localStorage.getItem('recomendacionesActuales')
+    },
+  },
   data() {
     return {
-      messages: [{ text: 'We are online!', type: 'bot' }],
+      messages: [],
       userInput: '',
       isMinimized: false,
       isClosed: false,
       isLoading: false,
     }
   },
+  mounted() {
+    // Verificar si hay contexto de recomendaciones al inicializar
+    const hasContext =
+      this.recomendacionesContext || localStorage.getItem('recomendacionesActuales')
+
+    if (hasContext) {
+      this.messages = [
+        {
+          text: '¡Hola! Tengo tus recomendaciones anteriores. ¿En qué puedo ayudarte?',
+          type: 'bot',
+        },
+      ]
+    } else {
+      this.messages = [
+        {
+          text: '¡Hola! ¿En qué puedo ayudarte?',
+          type: 'bot',
+        },
+      ]
+    }
+  },
   methods: {
     newChat() {
-      this.messages = [{ text: 'We are online!', type: 'bot' }]
+      // Verificar si hay contexto de recomendaciones al reiniciar
+      const hasContext =
+        this.recomendacionesContext || localStorage.getItem('recomendacionesActuales')
+
+      if (hasContext) {
+        this.messages = [
+          {
+            text: 'Chat reiniciado. Tengo tus recomendaciones. ¿Qué necesitas?',
+            type: 'bot',
+          },
+        ]
+      } else {
+        this.messages = [
+          {
+            text: '¡Hola! ¿En qué puedo ayudarte?',
+            type: 'bot',
+          },
+        ]
+      }
     },
     minimizeChat() {
       this.isMinimized = !this.isMinimized
@@ -49,16 +117,75 @@ export default {
     async sendMessage() {
       if (this.userInput.trim() === '') return
 
+      // Verificar si el usuario pregunta por el contexto disponible
+      const contextQueries = [
+        'contexto',
+        'información disponible',
+        'recomendaciones anteriores',
+        'qué sabes',
+        'info anterior',
+      ]
+      const isContextQuery = contextQueries.some((query) =>
+        this.userInput.toLowerCase().includes(query),
+      )
+
       this.messages.push({ text: this.userInput, type: 'user' })
       const userQuery = this.userInput
       this.userInput = ''
 
       this.scrollToBottom()
 
+      // Si es una consulta sobre el contexto, responder directamente
+      if (isContextQuery && this.hasRecommendationContext) {
+        let recomendaciones = this.recomendacionesContext
+        if (!recomendaciones) {
+          const storedRecommendations = localStorage.getItem('recomendacionesActuales')
+          if (storedRecommendations) {
+            recomendaciones = JSON.parse(storedRecommendations)
+          }
+        }
+
+        if (recomendaciones) {
+          const contextInfo = `📋 Accidente: ${recomendaciones.accidente}
+🏥 Botiquín: ${recomendaciones.botiquinItems}
+⏰ Generado: ${recomendaciones.fecha}
+
+Pregúntame sobre los pasos, alternativas o detalles específicos.`
+
+          this.messages.push({ text: contextInfo, type: 'bot' })
+          this.scrollToBottom()
+          return
+        }
+      }
+
       this.isLoading = true
       this.messages.push({ text: 'Cargando respuesta...', type: 'loading' })
 
       try {
+        // Construir el contexto con las recomendaciones anteriores
+        let contextualQuery = userQuery
+
+        // Obtener recomendaciones del localStorage si no se pasaron como prop
+        let recomendaciones = this.recomendacionesContext
+        if (!recomendaciones) {
+          const storedRecommendations = localStorage.getItem('recomendacionesActuales')
+          if (storedRecommendations) {
+            recomendaciones = JSON.parse(storedRecommendations)
+          }
+        }
+
+        // Si hay recomendaciones previas, usarlas como contexto
+        if (recomendaciones) {
+          contextualQuery = `CONTEXTO:
+- Accidente: ${recomendaciones.accidente}
+- Botiquín: ${recomendaciones.botiquinItems}
+- Recomendaciones previas: ${recomendaciones.respuestaTexto}
+
+PREGUNTA: ${userQuery}
+
+INSTRUCCIONES: Responde de forma BREVE y CONCISA (máximo 3-4 líneas). Usa el contexto previo. Sé directo y práctico.`
+        }
+
         const response = await fetch(
           'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=AIzaSyCAs6NqVsQZbabPN121hQOzlc5sbmjk5Nc',
           {
@@ -71,7 +198,7 @@ export default {
                 {
                   parts: [
                     {
-                      text: userQuery,
+                      text: contextualQuery,
                     },
                   ],
                 },
@@ -107,6 +234,35 @@ export default {
         const container = this.$refs.messagesContainer
         container.scrollTop = container.scrollHeight
       })
+    },
+    // Método para limpiar el contexto cuando se borren las recomendaciones
+    clearContext() {
+      this.messages = [
+        {
+          text: '¡Hola! ¿En qué puedo ayudarte?',
+          type: 'bot',
+        },
+      ]
+    },
+  },
+  watch: {
+    recomendacionesContext: {
+      handler(newValue) {
+        // Cuando se reciben nuevas recomendaciones, actualizar el mensaje de bienvenida
+        if (
+          newValue &&
+          this.messages.length === 1 &&
+          this.messages[0].text.includes('We are online!')
+        ) {
+          this.messages = [
+            {
+              text: 'Perfecto! Ahora tengo tus recomendaciones. ¿Qué necesitas saber?',
+              type: 'bot',
+            },
+          ]
+        }
+      },
+      immediate: true,
     },
   },
 }
@@ -144,12 +300,28 @@ export default {
   font-family: 'Roboto', sans-serif;
 }
 
+.header-content {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
 .chatbot-title {
   margin: 0;
   font-size: 20px;
-  text-align: center;
-  flex-grow: 1;
   font-weight: 700;
+}
+
+.context-indicator {
+  font-size: 12px;
+  background-color: rgba(255, 255, 255, 0.2);
+  padding: 3px 8px;
+  border-radius: 12px;
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .chatbot-controls {

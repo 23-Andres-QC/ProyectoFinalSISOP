@@ -6,23 +6,25 @@
         <q-toolbar-title class="text-white">Historial de Botiquines</q-toolbar-title>
 
         <!-- Enlaces del header -->
+        <q-btn flat label="Inicio" class="q-ml-md text-white" @click="$router.push('/principal')" />
         <q-btn
           flat
-          label="Quiénes Somos"
+          label="Crear Botiquín"
           class="q-ml-md text-white"
-          @click="$router.push('/principal')"
-        />
-        <q-btn
-          flat
-          label="Contactos"
-          class="q-ml-md text-white"
-          @click="$router.push('/contactos')"
+          @click="$router.push('/botiquin-opciones')"
         />
         <q-btn
           flat
           label="Mis Compras"
           class="q-ml-md text-white"
           @click="$router.push('/historial-compras')"
+        />
+        <q-btn
+          flat
+          icon="logout"
+          label="Cerrar Sesión"
+          class="q-ml-md text-white"
+          @click="logout"
         />
         <q-btn
           flat

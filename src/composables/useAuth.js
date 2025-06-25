@@ -108,12 +108,24 @@ export function useAuth() {
 
       if (signOutError) throw signOutError
 
+      // Limpiar estado local
       user.value = null
       session.value = null
 
+      // Emitir evento personalizado para notificar el cierre de sesión
+      window.dispatchEvent(new CustomEvent('userLoggedOut'))
+
+      // Limpiar almacenamiento local (excepto las recomendaciones que se limpiarán por el evento)
+      const recomendaciones = localStorage.getItem('recomendacionesActuales')
+      localStorage.clear()
+      sessionStorage.clear()
+
+      // Las recomendaciones se limpiarán por el evento userLoggedOut
+      console.log('✅ Sesión cerrada y datos limpiados')
       return { success: true }
     } catch (err) {
       error.value = err.message
+      console.error('❌ Error al cerrar sesión:', err)
       return { success: false, error: err.message }
     } finally {
       loading.value = false
