@@ -156,14 +156,36 @@ export function useAuth() {
   // Obtener sesión actual
   const getCurrentSession = async () => {
     try {
+      console.log('🔍 Obteniendo sesión actual...')
       const {
         data: { session: currentSession },
+        error: sessionError,
       } = await supabase.auth.getSession()
+
+      if (sessionError) {
+        console.error('❌ Error obteniendo sesión:', sessionError)
+        throw sessionError
+      }
+
+      console.log('📊 Sesión obtenida:', {
+        hasSession: !!currentSession,
+        hasUser: !!currentSession?.user,
+        userEmail: currentSession?.user?.email,
+      })
+
       session.value = currentSession
       user.value = currentSession?.user || null
+
+      console.log('✅ Estado actualizado:', {
+        userValue: user.value,
+        userEmail: user.value?.email,
+      })
+
       return currentSession
     } catch (err) {
-      console.error('Error al obtener sesión:', err)
+      console.error('💥 Error al obtener sesión:', err)
+      session.value = null
+      user.value = null
       return null
     }
   }

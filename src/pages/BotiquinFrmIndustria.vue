@@ -2,7 +2,7 @@
   <q-layout view="lHh Lpr lFf">
     <q-header elevated>
       <q-toolbar>
-        <q-toolbar-title class="text-white">Botiquín de Hogar</q-toolbar-title>
+        <q-toolbar-title class="text-white">Botiquín Industrial</q-toolbar-title>
       </q-toolbar>
     </q-header>
     <q-page class="q-pa-md">
@@ -16,7 +16,7 @@
               <!-- Selector de item -->
               <q-select
                 v-model="itemSeleccionado"
-                :options="itemsDisponibles.hogar"
+                :options="itemsDisponibles.industria"
                 option-label="nombre"
                 option-value="id_item"
                 label="Seleccionar item"
@@ -126,36 +126,28 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { Notify } from 'quasar'
-import { useRouter } from 'vue-router'
 import { useBotiquinDB } from '../composables/useBotiquinDB.js'
 import { useAuth } from '../composables/useAuth.js'
+import { Notify } from 'quasar'
+import { useRouter } from 'vue-router'
 
 const router = useRouter()
 const { user } = useAuth()
-const { loading, itemsDisponibles, cargarItemsDisponibles, registrarInventario, crearOrdenCompra } =
-  useBotiquinDB()
 
-// Variables para el formulario
+// Estado reactivo
 const itemSeleccionado = ref(null)
 const cantidad = ref(1)
 const itemsAgregados = ref([])
 
+// Composable para la base de datos
+const { loading, itemsDisponibles, cargarItemsDisponibles, registrarInventario, crearOrdenCompra } =
+  useBotiquinDB()
+
 // Cargar items disponibles al montar el componente
 onMounted(async () => {
-  console.log('🔍 Iniciando carga de items de hogar...')
-
-  // Cargar usando el composable
-  try {
-    await cargarItemsDisponibles('hogar')
-    console.log('✅ Items de hogar cargados via composable:', itemsDisponibles.hogar)
-  } catch (error) {
-    console.error('❌ Error cargando items via composable:', error)
-    Notify.create({
-      type: 'negative',
-      message: 'Error cargando items disponibles',
-    })
-  }
+  console.log('Cargando items de industria...')
+  await cargarItemsDisponibles('industria')
+  console.log('Items de industria cargados:', itemsDisponibles.industria)
 })
 
 // Agregar item a la lista
@@ -207,7 +199,7 @@ const eliminarItem = (index) => {
   })
 }
 
-// Registrar botiquín
+// Función para registrar botiquín
 const registrarBotiquin = async () => {
   if (itemsAgregados.value.length === 0) {
     Notify.create({
@@ -227,7 +219,7 @@ const registrarBotiquin = async () => {
 
   // Confirmación antes de registrar
   const confirmacion = confirm(
-    `¿Confirmas el registro del botiquín de hogar con ${itemsAgregados.value.length} items?`,
+    `¿Confirmas el registro del botiquín industrial con ${itemsAgregados.value.length} items?`,
   )
 
   if (!confirmacion) {
@@ -239,8 +231,8 @@ const registrarBotiquin = async () => {
   }
 
   try {
-    console.log('Iniciando registro desde formulario HOGAR:', {
-      tipo: 'hogar',
+    console.log('Iniciando registro desde formulario INDUSTRIA:', {
+      tipo: 'industria',
       items: itemsAgregados.value,
       usuario: user.value.email,
     })
@@ -254,11 +246,11 @@ const registrarBotiquin = async () => {
       })
     })
 
-    await registrarInventario('hogar', itemsAgregados.value)
+    await registrarInventario('industria', itemsAgregados.value)
 
     Notify.create({
       type: 'positive',
-      message: 'Botiquín de hogar registrado exitosamente',
+      message: 'Botiquín industrial registrado exitosamente',
     })
 
     // Limpiar formulario
@@ -267,7 +259,7 @@ const registrarBotiquin = async () => {
     // Redirigir al historial
     router.push('/historial-botiquin')
   } catch (err) {
-    console.error('Error en el formulario HOGAR:', err)
+    console.error('Error en el formulario INDUSTRIA:', err)
     Notify.create({
       type: 'negative',
       message: `Error al registrar el botiquín: ${err.message}`,

@@ -55,11 +55,23 @@
 </template>
 
 <script setup>
+import { onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuth } from '../composables/useAuth.js'
 
 const router = useRouter()
-const { signOut, user } = useAuth()
+const { signOut, user, initAuthListener, getCurrentSession } = useAuth()
+
+// Inicializar autenticación al montar el componente
+onMounted(async () => {
+  // Inicializar el listener de autenticación
+  initAuthListener()
+
+  // Obtener la sesión actual
+  await getCurrentSession()
+
+  console.log('MainLayout iniciado, usuario:', user.value)
+})
 
 function goTo(route) {
   // Puedes personalizar las rutas según tu estructura
