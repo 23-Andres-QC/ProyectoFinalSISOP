@@ -9,7 +9,7 @@
       <q-form @submit.prevent="onSubmit" class="q-gutter-md form-grid">
         <div>
           <div class="grid-container">
-            <div v-for="(item, idx) in montaniaItems" :key="idx" class="grid-item">
+            <div v-for="(item, idx) in montañaItems" :key="idx" class="grid-item">
               <q-input
                 v-model.number="cantidades[item]"
                 :label="item"
@@ -23,7 +23,13 @@
             </div>
           </div>
         </div>
-        <q-btn label="Guardar" type="submit" color="primary" class="q-mt-md" />
+        <q-btn
+          label="Guardar inventario"
+          type="submit"
+          color="primary"
+          class="q-mt-md"
+          :loading="loading"
+        />
         <q-btn
           label="Ver historial"
           color="secondary"
@@ -35,17 +41,23 @@
           color="accent"
           class="q-mt-md"
           @click="generarOrdenCompra"
+          :loading="loading"
         />
       </q-form>
-      <div v-if="mostrarHistorial" class="q-mt-lg" style="max-width: 700px; width: 100%">
+      <div
+        v-if="mostrarHistorial"
+        class="q-mt-lg historial-section"
+        style="max-width: 700px; width: 100%"
+      >
         <q-card class="bg-grey-1 shadow-3">
           <q-card-section>
             <div class="text-h6 text-primary flex items-center q-mb-md">
               <q-icon name="history" color="primary" class="q-mr-sm" />
-              Historial de registros
+              Historial de inventarios
             </div>
             <div v-if="historial.length === 0" class="text-grey-7 text-subtitle2 q-pa-md">
-              No hay registros guardados.
+              <q-spinner color="primary" size="20px" class="q-mr-sm" v-if="loading" />
+              <span v-else>No hay registros guardados.</span>
             </div>
             <div v-else>
               <q-list bordered separator>
@@ -58,21 +70,21 @@
                     <div class="row items-center q-mb-xs">
                       <q-icon name="event" color="secondary" size="20px" class="q-mr-xs" />
                       <span class="text-weight-medium text-secondary">Fecha:</span>
-                      <span class="q-ml-xs">{{ new Date(registro.fecha).toLocaleString() }}</span>
+                      <span class="q-ml-xs">{{ formatDate(registro.created_at) }}</span>
                     </div>
                     <q-separator spaced color="grey-3" />
                     <div class="q-mt-xs">
                       <span class="text-weight-medium text-accent">Objetos registrados:</span>
                       <div class="q-mt-xs">
                         <q-chip
-                          v-for="(valor, nombre) in registro.datos"
-                          :key="nombre"
+                          v-for="item in registro.items"
+                          :key="item.id"
                           color="primary"
                           text-color="white"
                           class="q-mr-xs q-mb-xs"
                         >
                           <q-icon name="medical_services" size="16px" class="q-mr-xs" />
-                          {{ nombre }}: <b>{{ valor }}</b>
+                          {{ item.item_name }}: <b>{{ item.quantity }}</b>
                         </q-chip>
                       </div>
                     </div>
@@ -83,149 +95,250 @@
           </q-card-section>
         </q-card>
       </div>
-      <div v-if="mostrarOrdenCompra" class="q-mt-lg" style="max-width: 700px; width: 100%">
-        <q-card class="bg-grey-2 shadow-3">
-          <q-card-section>
-            <div class="row items-center justify-between q-mb-md">
-              <div class="text-h6 text-accent flex items-center">
-                <q-icon name="shopping_cart" color="accent" class="q-mr-sm" />
-                Orden de compra
-              </div>
-              <q-btn
-                dense
-                flat
-                round
-                icon="close"
-                color="grey-7"
-                @click="mostrarOrdenCompra = false"
-                aria-label="Cerrar orden de compra"
-              />
-            </div>
-            <div class="text-grey-7 text-subtitle2 q-pa-md" v-if="ordenCompraItems.length === 0">
-              No hay insumos seleccionados para comprar.
-            </div>
-            <div v-else>
-              <div class="q-mb-sm"><b>Fecha:</b> {{ ordenCompraFecha }}</div>
-              <div class="q-mb-md"><b>N° Orden:</b> {{ ordenCompraNumero }}</div>
-              <q-list bordered separator>
-                <q-item v-for="(item, idx) in ordenCompraItems" :key="idx">
-                  <q-item-section>
-                    <q-chip color="accent" text-color="white" class="q-mr-xs">
-                      <q-icon name="medical_services" size="16px" class="q-mr-xs" />
-                      {{ item.nombre }}: <b>{{ item.cantidad }}</b>
-                    </q-chip>
-                  </q-item-section>
-                </q-item>
-              </q-list>
-            </div>
-            <q-btn
-              label="Cerrar"
-              color="primary"
-              class="q-mt-md"
-              @click="mostrarOrdenCompra = false"
-            />
-          </q-card-section>
-        </q-card>
-      </div>
+
+      <!-- Modal de orden de compra -->
+      <OrdenCompraModal
+        v-model="showOrderModal"
+        :items="ordenCompraItems"
+        :total="totalCompra"
+        @confirmar="confirmarOrden"
+      />
     </q-page>
   </q-layout>
 </template>
 
 <script setup>
-import { reactive, ref } from 'vue'
+import { reactive, ref, onMounted, watch } from 'vue'
+import { useQuasar } from 'quasar'
+import { useRouter } from 'vue-router'
+import { useBotiquin } from '../composables/useBotiquin.js'
+import { useAuth } from '../composables/useAuth.js'
+import OrdenCompraModal from '../components/OrdenCompraModal.vue'
+
+const $q = useQuasar()
+const router = useRouter()
+const { user } = useAuth()
+const { registerInventory, getUserInventoryHistory, getItemPrices, createPurchaseOrder } =
+  useBotiquin()
 
 const mostrarHistorial = ref(false)
 const historial = ref([])
-const mostrarOrdenCompra = ref(false)
+const showOrderModal = ref(false)
 const ordenCompraItems = ref([])
-const ordenCompraFecha = ref('')
-const ordenCompraNumero = ref('')
+const totalCompra = ref(0)
+const loading = ref(false)
 
-const montaniaItems = [
-  'Gasas estériles (mínimo 10 unidades)',
-  'Vendas elásticas (2 unidades)',
-  'Venda triangular',
-  'Cinta médica adhesiva (micropore o tela)',
-  'Curitas de varios tamaños (al menos 10)',
-  'Apósitos grandes estériles (2 unidades)',
-  'Algodón en rollo o bolitas',
-  'Toallitas antisépticas (mínimo 5)',
-  'Alcohol en gel (frasco pequeño)',
-  'Suero fisiológico (ampollas o botellitas)',
-  'Gel para quemaduras (aloe vera o similar)',
-  'Apósitos antiampollas (hidrocoloides, 2-3)',
-  'Aguja estéril',
-  'Termómetro digital',
-  'Paracetamol 500 mg (6 tabletas)',
-  'Ibuprofeno 400 mg (6 tabletas)',
-  'Antidiarreico (loperamida, 4 tabletas)',
-  'Antiemético (metoclopramida, 4 tabletas)',
-  'Antialérgico oral (loratadina o cetirizina, 4 tabletas)',
-  'Sales de rehidratación oral (4 sobres)',
-  'Crema con hidrocortisona o calamina',
-  'Repelente de insectos',
-  'Pinzas metálicas',
-  'Tijeras pequeñas de punta roma',
-  'Guantes estériles (mínimo 2 pares)',
-  'Compresas frías instantáneas (2 unidades)',
+const montañaItems = [
+  'Gasas estériles de diferentes tamaños',
+  'Vendas elásticas autoadhesivas',
+  'Curitas resistentes al agua',
+  'Alcohol antiséptico 70%',
+  'Yodo para desinfección',
+  'Analgésicos (ibuprofeno, paracetamol)',
+  'Antiinflamatorios',
+  'Antihistamínicos para alergias',
+  'Crema protectora solar factor 50+',
+  'Crema para quemaduras',
+  'Bálsamo para labios con protector solar',
+  'Termómetro resistente',
   'Manta térmica de emergencia',
-  'Linterna o frontal con pilas',
-  'Silbato',
-  'Encendedor o pedernal',
-  'Espejo pequeño',
-  'Libreta impermeable y lápiz',
-  'Bolsas ziplock (3 unidades)',
-  'Tarjeta con datos personales y contacto de emergencia',
-  'Medicación personal (si aplica)',
+  'Silbato de emergencia',
+  'Linterna pequeña con pilas extra',
+  'Tijeras multiuso',
+  'Pinzas de acero inoxidable',
+  'Guantes de nitrilo resistentes',
+  'Mascarillas contra polvo',
+  'Bolsas de hielo instantáneo',
+  'Suero fisiológico en ampollas',
+  'Jeringa desechable para irrigación',
+  'Cinta adhesiva resistente',
+  'Manual de primeros auxilios de montaña',
 ]
 
 const cantidades = reactive({})
-montaniaItems.forEach((item) => (cantidades[item] = 0))
+montañaItems.forEach((item) => (cantidades[item] = 0))
 
-function onSubmit() {
-  let hist = []
-  const savedHist = localStorage.getItem('historialBotiquinMontania')
-  if (savedHist) {
-    hist = JSON.parse(savedHist)
+const formatDate = (dateString) => {
+  return new Date(dateString).toLocaleString()
+}
+
+async function onSubmit() {
+  if (!user.value) {
+    $q.notify({
+      type: 'negative',
+      message: 'Debes estar autenticado para guardar el inventario',
+    })
+    return
   }
-  hist.push({
-    fecha: new Date().toISOString(),
-    datos: { ...cantidades },
-  })
-  localStorage.setItem('historialBotiquinMontania', JSON.stringify(hist))
-  historial.value = hist
-  alert(
-    'Guardado para Montaña: ' +
-      JSON.stringify(cantidades, null, 2) +
-      '\n\n¡Registro añadido al historial local!',
-  )
-}
 
-function generarOrdenCompra() {
-  // Solo insumos con cantidad > 0
-  const items = Object.entries(cantidades)
-    .filter(([, cantidad]) => cantidad > 0)
-    .map(([nombre, cantidad]) => ({ nombre, cantidad }))
-  ordenCompraItems.value = items
-  ordenCompraFecha.value = new Date().toLocaleString()
-  ordenCompraNumero.value = 'OC-' + Date.now()
-  mostrarOrdenCompra.value = true
-}
+  loading.value = true
+  try {
+    // Filtrar solo items con cantidad > 0
+    const items = Object.entries(cantidades)
+      .filter(([, cantidad]) => cantidad > 0)
+      .map(([nombre, cantidad]) => ({ item_name: nombre, quantity: cantidad }))
 
-// Al cargar, puedes recuperar el último registro si lo deseas y el historial completo
-const savedHist = localStorage.getItem('historialBotiquinMontania')
-if (savedHist) {
-  const hist = JSON.parse(savedHist)
-  historial.value = hist
-  const ultimo = hist[hist.length - 1]
-  if (ultimo && ultimo.datos) {
-    Object.keys(ultimo.datos).forEach((key) => {
-      if (Object.prototype.hasOwnProperty.call(cantidades, key)) {
-        cantidades[key] = ultimo.datos[key]
+    if (items.length === 0) {
+      $q.notify({
+        type: 'warning',
+        message: 'Debes agregar al menos un item con cantidad mayor a 0',
+      })
+      return
+    }
+
+    await registerInventory('montaña', items)
+
+    $q.notify({
+      type: 'positive',
+      message: 'Inventario guardado exitosamente',
+    })
+
+    // Limpiar cantidades
+    montañaItems.forEach((item) => (cantidades[item] = 0))
+
+    // Recargar historial y mostrarlo
+    await loadHistorial()
+    mostrarHistorial.value = true
+
+    // Scroll al historial
+    setTimeout(() => {
+      const historialElement = document.querySelector('.historial-section')
+      if (historialElement) {
+        historialElement.scrollIntoView({ behavior: 'smooth' })
       }
+    }, 100)
+  } catch (error) {
+    console.error('Error al guardar inventario:', error)
+    $q.notify({
+      type: 'negative',
+      message: 'Error al guardar el inventario: ' + error.message,
+    })
+  } finally {
+    loading.value = false
+  }
+}
+
+async function generarOrdenCompra() {
+  if (!user.value) {
+    $q.notify({
+      type: 'negative',
+      message: 'Debes estar autenticado para generar una orden',
+    })
+    return
+  }
+
+  loading.value = true
+  try {
+    // Solo insumos con cantidad > 0
+    const items = Object.entries(cantidades)
+      .filter(([, cantidad]) => cantidad > 0)
+      .map(([nombre, cantidad]) => ({ item_name: nombre, quantity: cantidad }))
+
+    if (items.length === 0) {
+      $q.notify({
+        type: 'warning',
+        message: 'Debes seleccionar al menos un item para la orden de compra',
+      })
+      return
+    }
+
+    // Obtener precios
+    const prices = await getItemPrices(items.map((item) => item.item_name))
+
+    // Combinar items con precios
+    const itemsWithPrices = items.map((item) => {
+      const price = prices.find((p) => p.item_name === item.item_name)?.price || 0
+      return {
+        ...item,
+        price,
+        total: item.quantity * price,
+      }
+    })
+
+    const total = itemsWithPrices.reduce((sum, item) => sum + item.total, 0)
+
+    ordenCompraItems.value = itemsWithPrices
+    totalCompra.value = total
+    showOrderModal.value = true
+  } catch (error) {
+    console.error('Error al generar orden:', error)
+    $q.notify({
+      type: 'negative',
+      message: 'Error al generar la orden: ' + error.message,
+    })
+  } finally {
+    loading.value = false
+  }
+}
+
+async function confirmarOrden(contactInfo) {
+  loading.value = true
+  try {
+    const orderData = {
+      type: 'montaña',
+      items: ordenCompraItems.value,
+      total_amount: totalCompra.value,
+      contact_name: contactInfo.name,
+      contact_phone: contactInfo.phone,
+      contact_email: contactInfo.email,
+    }
+
+    await createPurchaseOrder(orderData)
+
+    $q.notify({
+      type: 'positive',
+      message: 'Orden de compra creada exitosamente',
+    })
+
+    showOrderModal.value = false
+
+    // Limpiar cantidades
+    montañaItems.forEach((item) => (cantidades[item] = 0))
+
+    // Redirigir al historial de compras
+    setTimeout(() => {
+      router.push('/historial-compras')
+    }, 1000)
+  } catch (error) {
+    console.error('Error al confirmar orden:', error)
+    $q.notify({
+      type: 'negative',
+      message: 'Error al crear la orden: ' + error.message,
+    })
+  } finally {
+    loading.value = false
+  }
+}
+
+async function loadHistorial() {
+  if (!user.value) return
+
+  try {
+    historial.value = await getUserInventoryHistory('montaña')
+  } catch (error) {
+    console.error('Error al cargar historial:', error)
+    $q.notify({
+      type: 'negative',
+      message: 'Error al cargar el historial',
     })
   }
 }
+
+onMounted(async () => {
+  if (mostrarHistorial.value) {
+    await loadHistorial()
+  }
+})
+
+// Watch para cargar historial cuando se muestre
+watch(
+  () => mostrarHistorial.value,
+  async (newVal) => {
+    if (newVal) {
+      await loadHistorial()
+    }
+  },
+)
 </script>
 
 <style scoped>
