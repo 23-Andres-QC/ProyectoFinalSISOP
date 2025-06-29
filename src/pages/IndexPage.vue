@@ -1,93 +1,143 @@
 <template>
-  <q-page class="flex flex-center principal-bg" style="height: 100vh">
-    <q-card
-      style="max-width: 900px; width: 95vw"
-      class="q-pa-xl shadow-2 bg-white row items-center justify-between"
-    >
-      <div class="col-12 col-md-5 flex flex-center">
+  <q-page class="flex flex-center principal-bg">
+    <div class="container">
+      <div class="hero-section">
         <img
-          src="../assets/img/hero-index.svg"
-          alt="Salud y Emergencia"
-          style="width: 180px; height: 180px"
+          src="https://cdn.pixabay.com/photo/2017/01/31/13/14/first-aid-2025391_1280.png"
+          alt="Primeros Auxilios"
+          class="hero-img"
         />
-      </div>
-      <div class="col-12 col-md-7 q-pa-md">
-        <div class="text-h4 text-blue-10 q-mb-md text-center">Minutos de Vida</div>
-        <div class="text-body1 text-grey-8 q-mb-lg text-justify">
-          “Minutos de Vida” es una solución integral que te guía paso a paso ante emergencias
-          médicas y accidentes, incluso sin conexión a internet.<br /><br />
-          <span class="text-blue-7">Aprende qué hacer en situaciones críticas</span> como cortes,
-          quemaduras, convulsiones, atragantamientos, fiebre alta o intoxicaciones, y usa tu kit de
-          emergencia con seguridad.<br /><br />
-          <span class="text-negative"
-            ><b>Porque en los momentos más urgentes, cada minuto puede salvar una vida.</b></span
-          >
+        <div class="hero-text">
+          <h1>Minutos de Vida</h1>
+          <p>
+            Tu guía rápida y confiable en emergencias médicas y accidentes.<br />
+            Aprende primeros auxilios, personaliza tu botiquín y actúa con seguridad.<br />
+            <b class="text-negative">¡Cada minuto cuenta para salvar una vida!</b>
+          </p>
+          <div class="botones-principales">
+            <q-btn
+              label="Personalizar Botiquín"
+              color="primary"
+              size="lg"
+              class="q-mb-md"
+              @click="goToPersonalizar"
+            />
+            <q-btn
+              label="Comprar un Botiquín"
+              color="secondary"
+              size="lg"
+              class="q-mb-md"
+              @click="goToComprar"
+            />
+            <q-btn label="Tengo un Accidente" color="negative" size="lg" @click="goToAccidente" />
+          </div>
         </div>
-        <div class="row justify-center">
-          <q-btn
-            color="blue-7"
-            text-color="white"
-            label="Personaliza tu Botiquín"
-            class="q-mt-md"
-            size="lg"
-            icon="medical_services"
-            @click="goToAccidentes"
-          />
-        </div>
       </div>
-    </q-card>
+      <div class="info-section">
+        <h2>¿Por qué aprender primeros auxilios?</h2>
+        <ul>
+          <li>Salva vidas en situaciones críticas.</li>
+          <li>Reduce el riesgo de complicaciones.</li>
+          <li>Brinda seguridad a tu familia y entorno.</li>
+        </ul>
+        <img
+          src="https://cdn.pixabay.com/photo/2016/03/31/19/14/first-aid-1295276_1280.png"
+          alt="Kit de Primeros Auxilios"
+          class="info-img"
+        />
+        <h3>Recursos útiles</h3>
+        <ul>
+          <li>
+            <a href="https://www.cruzroja.es/principal/web/guest/primeros-auxilios" target="_blank"
+              >Cruz Roja: Primeros Auxilios</a
+            >
+          </li>
+          <li>
+            <a href="https://www.who.int/es/news-room/fact-sheets/detail/first-aid" target="_blank"
+              >OMS: Primeros Auxilios</a
+            >
+          </li>
+        </ul>
+      </div>
+    </div>
   </q-page>
 </template>
 
 <script setup>
 import { useRouter } from 'vue-router'
-
 const router = useRouter()
-function goToAccidentes() {
-  router.push('/botiquin')
+function goToPersonalizar() {
+  router.push({ path: '/botiquin-frm-escolar', query: { modo: 'personalizar' } })
+}
+function goToComprar() {
+  router.push({ path: '/botiquin-frm-escolar', query: { modo: 'comprar' } })
+}
+function goToAccidente() {
+  router.push('/ac')
 }
 </script>
 
 <style scoped>
 .principal-bg {
   background: linear-gradient(135deg, #2196f3 0%, #e3f2fd 100%);
-  height: 100vh;
-  overflow-y: hidden;
+  min-height: 100vh;
 }
-.q-card {
-  border-radius: 20px;
-  border: 2px solid #1976d2;
-  box-shadow: 0 8px 32px 0 rgba(33, 150, 243, 0.15);
+.container {
+  width: 100%;
+  max-width: 1100px;
+  margin: auto;
+  padding: 24px;
+}
+.hero-section {
   display: flex;
-  flex-direction: row;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  min-height: 350px;
+  margin-bottom: 32px;
 }
-.q-btn {
-  font-weight: bold;
-  border-radius: 8px;
-  background: linear-gradient(90deg, #1976d2 0%, #64b5f6 100%);
-  box-shadow: 0 4px 16px 0 rgba(33, 150, 243, 0.1);
+.hero-img {
+  width: 220px;
+  max-width: 100%;
+  margin-right: 32px;
 }
-.text-blue-10 {
-  color: #0d47a1;
+.hero-text {
+  flex: 1;
+  min-width: 250px;
 }
-.text-negative {
-  color: #d32f2f;
+.botones-principales {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  margin-top: 24px;
 }
-.text-justify {
-  text-align: justify;
+.info-section {
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 4px 16px rgba(33, 150, 243, 0.08);
+  padding: 24px;
+  margin-top: 24px;
+}
+.info-img {
+  width: 180px;
+  float: right;
+  margin-left: 24px;
+  margin-bottom: 16px;
 }
 @media (max-width: 900px) {
-  .q-card {
+  .hero-section {
     flex-direction: column;
-    min-height: unset;
-    max-width: 95vw;
+    align-items: flex-start;
   }
-  .col-12 {
-    width: 100%;
-    max-width: 100%;
+  .hero-img {
+    margin: 0 0 16px 0;
+  }
+  .info-img {
+    float: none;
+    display: block;
+    margin: 16px auto;
+  }
+  .botones-principales {
+    align-items: stretch;
   }
 }
 </style>

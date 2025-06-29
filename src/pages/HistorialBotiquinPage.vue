@@ -4,28 +4,7 @@
       <q-toolbar>
         <q-btn flat round dense icon="arrow_back" @click="$router.go(-1)" />
         <q-toolbar-title class="text-white">Historial de Botiquines</q-toolbar-title>
-
-        <!-- Enlaces del header -->
         <q-btn flat label="Inicio" class="q-ml-md text-white" @click="$router.push('/principal')" />
-        <q-btn
-          flat
-          label="Crear Botiquín"
-          class="q-ml-md text-white"
-          @click="$router.push('/botiquin-opciones')"
-        />
-        <q-btn
-          flat
-          label="Mis Compras"
-          class="q-ml-md text-white"
-          @click="$router.push('/historial-compras')"
-        />
-        <q-btn
-          flat
-          icon="logout"
-          label="Cerrar Sesión"
-          class="q-ml-md text-white"
-          @click="logout"
-        />
         <q-btn
           flat
           icon="logout"
@@ -37,21 +16,17 @@
     </q-header>
     <q-page class="q-pa-md">
       <div class="row q-gutter-md">
-        <!-- Lista de inventarios -->
         <div class="col-12">
           <q-card class="q-pa-md">
             <q-card-section>
-              <div class="text-h6 q-mb-md">Tus Botiquines Registrados</div>
+              <div class="text-h6 q-mb-md">Historial de Botiquines</div>
 
               <div v-if="loading" class="text-center q-pa-lg">
                 <q-spinner color="primary" size="48px" />
                 <div class="q-mt-md">Cargando historial...</div>
               </div>
 
-              <div
-                v-else-if="historialInventarios.length === 0"
-                class="text-center text-grey-6 q-pa-lg"
-              >
+              <div v-else-if="botiquines.length === 0" class="text-center text-grey-6 q-pa-lg">
                 <q-icon name="inventory" size="48px" class="q-mb-md" />
                 <div>No tienes botiquines registrados</div>
                 <q-btn
@@ -65,29 +40,28 @@
               <div v-else>
                 <q-list separator>
                   <q-item
-                    v-for="inventario in historialInventarios"
-                    :key="inventario.id_registro"
+                    v-for="item in botiquines"
+                    :key="item.id"
                     class="q-pa-md"
                     clickable
-                    @click="verDetalle(inventario)"
+                    @click="verDetalle(item)"
                   >
                     <q-item-section avatar>
-                      <q-avatar
-                        color="primary"
-                        text-color="white"
-                        :icon="getIconoTipo(inventario.detalle_inventario)"
-                      />
+                      <q-avatar color="primary" text-color="white" icon="medical_services" />
                     </q-item-section>
                     <q-item-section>
                       <q-item-label class="text-weight-medium">
-                        Botiquín {{ getTiposUnicos(inventario.detalle_inventario).join(', ') }}
+                        Botiquín
+                        {{
+                          item.productos && item.productos.length > 0
+                            ? getTipoNombre(item.productos[0].tipo)
+                            : ''
+                        }}
                       </q-item-label>
                       <q-item-label caption>
-                        {{ inventario.detalle_inventario.length }} items registrados
+                        {{ (item.productos?.length || 0) + ' productos' }}
                       </q-item-label>
-                      <q-item-label caption class="q-mt-xs">
-                        ID: {{ inventario.id_registro }}
-                      </q-item-label>
+                      <q-item-label caption class="q-mt-xs"> ID: {{ item.id }} </q-item-label>
                     </q-item-section>
                     <q-item-section side>
                       <div class="row q-gutter-xs">
@@ -97,7 +71,7 @@
                           size="sm"
                           flat
                           round
-                          @click.stop="editarInventario(inventario)"
+                          @click.stop="editarInventario(item)"
                         >
                           <q-tooltip>Editar</q-tooltip>
                         </q-btn>
@@ -107,7 +81,7 @@
                           size="sm"
                           flat
                           round
-                          @click.stop="confirmarEliminar(inventario.id_registro)"
+                          @click.stop="confirmarEliminar(item)"
                         >
                           <q-tooltip>Eliminar</q-tooltip>
                         </q-btn>
@@ -128,31 +102,24 @@
             <div class="text-h6">Detalle del Botiquín</div>
           </q-card-section>
 
-          <q-card-section v-if="inventarioSeleccionado">
+          <q-card-section v-if="registroSeleccionado">
+            <div class="text-subtitle2 q-mb-md">ID: {{ registroSeleccionado.id }}</div>
             <div class="text-subtitle2 q-mb-md">
-              Inventario ID: {{ inventarioSeleccionado.id_registro }}
+              Tipo: {{ getTipoNombre(registroSeleccionado.tipo_kit) }}
             </div>
-            <div class="text-subtitle2 q-mb-md">
-              Tipo: {{ getTiposUnicos(inventarioSeleccionado.detalle_inventario).join(', ') }}
+            <div>
+              <div class="text-subtitle2 q-mb-md">
+                Total de productos: {{ registroSeleccionado.productos?.length || 0 }}
+              </div>
+              <q-list dense>
+                <q-item v-for="(prod, idx) in registroSeleccionado.productos" :key="idx">
+                  <q-item-section>
+                    <q-item-label><b>Producto:</b> {{ prod.nombre }}</q-item-label>
+                    <q-item-label><b>Cantidad:</b> {{ prod.cantidad }}</q-item-label>
+                  </q-item-section>
+                </q-item>
+              </q-list>
             </div>
-            <div class="text-subtitle2 q-mb-md">
-              Total de items: {{ inventarioSeleccionado.detalle_inventario.length }}
-            </div>
-
-            <q-list dense>
-              <q-item
-                v-for="item in inventarioSeleccionado.detalle_inventario"
-                :key="item.id_detalle"
-              >
-                <q-item-section>
-                  <q-item-label>{{ item.nombre_item }}</q-item-label>
-                  <q-item-label caption>Tipo: {{ item.tipo_kit }}</q-item-label>
-                </q-item-section>
-                <q-item-section side>
-                  <q-badge color="primary">{{ item.cantidad }}</q-badge>
-                </q-item-section>
-              </q-item>
-            </q-list>
           </q-card-section>
 
           <q-card-actions align="right">
@@ -174,124 +141,126 @@ import { useAuth } from '../composables/useAuth.js'
 const $q = useQuasar()
 const router = useRouter()
 const { signOut } = useAuth()
-const { loading, error, historialInventarios, cargarHistorialInventarios, eliminarInventario } =
-  useBotiquinDB()
+const {
+  loading,
+  error,
+  obtenerHistorialBotiquinesYReservas,
+  eliminarInventario,
+  obtenerInventarioPorId,
+} = useBotiquinDB()
 
 const mostrarDetalle = ref(false)
-const inventarioSeleccionado = ref(null)
+const registroSeleccionado = ref(null)
+const historial = ref([])
+const botiquines = ref([])
 
-// Cargar historial al montar el componente
+const getTipoNombre = (tipo) => {
+  const nombres = {
+    hogar: 'Hogar',
+    oficina: 'Oficina',
+    escolar: 'Escolar',
+    industria: 'Industria',
+    montania: 'Montaña',
+    montaña: 'Montaña',
+  }
+  return nombres[tipo] || tipo || ''
+}
+
 onMounted(async () => {
-  await cargarHistorialInventarios()
+  historial.value = await obtenerHistorialBotiquinesYReservas()
+  botiquines.value = historial.value.filter((item) => item.tipo === 'botiquin')
 })
 
-// Obtener tipos únicos de un inventario
-const getTiposUnicos = (detalles) => {
-  const tipos = [...new Set(detalles.map((d) => d.tipo_kit))]
-  return tipos.map((tipo) => {
-    const nombres = {
-      hogar: 'Hogar',
-      oficina: 'Oficina',
-      escolar: 'Escolar',
-      industria: 'Industria',
-      montania: 'Montaña',
-      montaña: 'Montaña', // Agregar ambas variantes
+const verDetalle = (registro) => {
+  // Obtener el inventario real desde la base de datos por ID
+  obtenerInventarioPorId(registro.id).then((inventario) => {
+    if (
+      !inventario ||
+      !inventario.detalle_inventario ||
+      inventario.detalle_inventario.length === 0
+    ) {
+      $q.notify({
+        type: 'negative',
+        message: 'No se pudo obtener el detalle del botiquín.',
+      })
+      return
     }
-    return nombres[tipo] || tipo
+    // Tomar tipo solo del primer producto
+    const tipo = inventario.detalle_inventario[0]?.tipo || registro.tipo_kit
+    // Mapear productos con nombre, cantidad y tipo
+    const productos = inventario.detalle_inventario.map((item) => ({
+      nombre: item.nombre_item,
+      cantidad: item.cantidad,
+      tipo: item.tipo, // este campo debe venir de la consulta join con productos
+    }))
+    registroSeleccionado.value = {
+      id: registro.id,
+      tipo_kit: tipo,
+      productos,
+    }
+    mostrarDetalle.value = true
   })
 }
 
-// Obtener icono según el tipo de botiquín
-const getIconoTipo = (detalles) => {
-  const primerTipo = detalles[0]?.tipo_kit
-  const iconos = {
-    hogar: 'home',
-    oficina: 'business',
-    escolar: 'school',
-    industria: 'factory',
-    montania: 'landscape',
-    montaña: 'landscape',
-  }
-  return iconos[primerTipo] || 'medical_services'
-}
-
-// Ver detalle del inventario
-const verDetalle = (inventario) => {
-  inventarioSeleccionado.value = inventario
-  mostrarDetalle.value = true
-}
-
-// Editar inventario
-const editarInventario = (inventario) => {
-  const tipoKit = inventario.detalle_inventario[0]?.tipo_kit
-  console.log('🔍 Tipo de kit detectado:', tipoKit)
-
-  if (tipoKit) {
-    // Redirigir al formulario correspondiente según el tipo
-    const rutas = {
-      hogar: '/botiquin-frm-hogar',
-      oficina: '/botiquin-frm-oficina',
-      escolar: '/botiquin-frm-escolar',
-      industria: '/botiquin-frm-industria',
-      montania: '/botiquin-frm-montaña',
-      montaña: '/botiquin-frm-montaña', // Agregar ambas variantes
-    }
-
-    const ruta = rutas[tipoKit]
-    if (ruta) {
-      console.log('✅ Redirigiendo a:', ruta, 'con ID:', inventario.id_registro)
-      // Pasar el ID del inventario como parámetro de consulta para activar el modo edición
-      router.push({
-        path: ruta,
-        query: { edit: inventario.id_registro },
-      })
-    } else {
-      console.error(
-        '❌ Tipo no encontrado en rutas:',
-        tipoKit,
-        'Rutas disponibles:',
-        Object.keys(rutas),
-      )
-      $q.notify({
-        type: 'warning',
-        message: `Tipo de botiquín no reconocido: ${tipoKit}`,
-      })
-    }
+const editarInventario = async (registro) => {
+  // Log para depuración
+  console.log('📝 Editar inventario, registro:', registro)
+  // Obtener el inventario real desde la base de datos por ID
+  const inventario = await obtenerInventarioPorId(registro.id)
+  console.log('📦 Inventario obtenido:', inventario)
+  let tipo =
+    inventario?.detalle_inventario?.[0]?.tipo_kit || inventario?.tipo_kit || registro.tipo_kit
+  let productos = []
+  if (inventario && inventario.detalle_inventario && inventario.detalle_inventario.length > 0) {
+    tipo = inventario.detalle_inventario[0].tipo_kit || tipo
+    productos = inventario.detalle_inventario.map((item) => ({
+      id_producto: item.id_item,
+      nombre: item.nombre_item,
+      cantidad: item.cantidad,
+      tipo: item.tipo_kit,
+    }))
   } else {
-    console.error('❌ No se encontró tipo_kit en el inventario')
+    // Si no hay inventario, notificar y no navegar
     $q.notify({
-      type: 'warning',
-      message: 'No se pudo determinar el tipo de botiquín',
+      type: 'negative',
+      message: 'No se pudo obtener el inventario para editar. Intenta más tarde.',
     })
+    return
   }
+  router.push({
+    path: '/botiquin-frm-escolar',
+    query: {
+      edit: registro.id,
+      tipo: tipo,
+      productos: JSON.stringify(productos),
+    },
+  })
 }
 
-// Confirmar eliminación
-const confirmarEliminar = (idRegistro) => {
+const confirmarEliminar = (registro) => {
   $q.dialog({
     title: 'Confirmar eliminación',
-    message:
-      '¿Estás seguro de que quieres eliminar este botiquín? Esta acción no se puede deshacer.',
+    message: `¿Estás seguro de que quieres eliminar este botiquín? Esta acción no se puede deshacer.`,
     cancel: true,
     persistent: true,
   }).onOk(async () => {
     try {
-      await eliminarInventario(idRegistro)
+      await eliminarInventario(registro.id)
       $q.notify({
         type: 'positive',
         message: 'Botiquín eliminado exitosamente',
       })
-      await cargarHistorialInventarios()
-    } catch {
+      historial.value = await obtenerHistorialBotiquinesYReservas()
+      botiquines.value = historial.value.filter((item) => item.tipo === 'botiquin')
+    } catch (err) {
       $q.notify({
         type: 'negative',
-        message: error.value || 'Error al eliminar el botiquín',
+        message: error.value || err.message || 'Error al eliminar el botiquín',
       })
     }
   })
 }
 
-// Función para cerrar sesión
 const logout = async () => {
   try {
     const result = await signOut()

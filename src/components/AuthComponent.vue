@@ -268,8 +268,13 @@ const handleSubmit = async () => {
     const result = await signIn(email.value, password.value)
 
     if (result.success) {
-      // Redirigir a la página de botiquín y accidentes
-      router.push('/principal')
+      // Redirigir según tipo de usuario
+      const tipoUsuario = localStorage.getItem('tipo_usuario')
+      if (tipoUsuario === 'Administrador' || tipoUsuario === 'admin') {
+        router.push('/admin/ordenes')
+      } else {
+        router.push('/principal')
+      }
     }
   } else {
     // Registrarse

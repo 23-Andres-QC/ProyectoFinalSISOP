@@ -142,3 +142,5 @@ const logout = async () => {
   color: #333;
 }
 </style>
+
+<!-- Archivo eliminado: Página antigua de opciones de Botiquín. El flujo ahora es único y está en BotiquinFrmEscolar.vue. -->

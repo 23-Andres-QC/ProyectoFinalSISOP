@@ -56,3 +56,12 @@ export const redirectIfAuthenticated = async (to, from, next) => {
     next() // En caso de error, continúa
   }
 }
+
+export const requireAdmin = async (to, from, next) => {
+  const tipoUsuario = localStorage.getItem('tipo_usuario')
+  if (tipoUsuario === 'Administrador' || tipoUsuario === 'admin') {
+    next()
+  } else {
+    next('/principal') // Redirige a la página principal si no es admin
+  }
+}

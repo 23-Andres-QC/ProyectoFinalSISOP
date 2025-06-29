@@ -306,15 +306,15 @@ export function useBotiquinDB() {
       const id_usuario_interno = await obtenerIdUsuarioInterno()
       console.log('✅ ID usuario interno obtenido:', id_usuario_interno)
 
-      // Crear registro principal
+      // Crear registro principal en inventario_botiquin
       console.log('📊 Creando registro principal...')
       const registroData = {
         id_usuario: id_usuario_interno,
       }
-      console.log('📤 Datos a insertar en registro_inventario:', registroData)
+      console.log('📤 Datos a insertar en inventario_botiquin:', registroData)
 
       const { data: registro, error: registroError } = await supabase
-        .from('registro_inventario')
+        .from('inventario_botiquin')
         .insert(registroData)
         .select()
         .single()
@@ -334,16 +334,15 @@ export function useBotiquinDB() {
       console.log('🔄 Tipo mapeado:', { tipoOriginal: tipo, tipoParaBD })
 
       const detalles = items.map((item) => ({
-        id_registro: registro.id_registro,
-        tipo_kit: tipoParaBD,
-        id_item: item.id_item,
+        id_inventario: registro.id_inventario,
+        id_producto: item.id_item,
         cantidad: item.cantidad,
       }))
 
-      console.log('📤 Detalles a insertar en detalle_inventario:', detalles)
+      console.log('📤 Detalles a insertar en detalle_inventario_botiquin:', detalles)
 
       const { data: detallesInsertados, error: detallesError } = await supabase
-        .from('detalle_inventario')
+        .from('detalle_inventario_botiquin')
         .insert(detalles)
         .select()
 
@@ -367,36 +366,32 @@ export function useBotiquinDB() {
   }
 
   // Actualizar inventario existente
-  const actualizarInventario = async (idRegistro, items) => {
+  const actualizarInventario = async (idInventario, items) => {
     try {
       loading.value = true
       error.value = null
 
-      // Eliminar detalles existentes
+      // Eliminar detalles existentes (ajustar campo a id_inventario)
       const { error: deleteError } = await supabase
-        .from('detalle_inventario')
+        .from('detalle_inventario_botiquin')
         .delete()
-        .eq('id_registro', idRegistro)
+        .eq('id_inventario', idInventario)
 
       if (deleteError) throw deleteError
 
       // Insertar nuevos detalles
       if (items.length > 0) {
-        const detalles = items.map((item) => {
-          // Mapear tipo para compatibilidad con BD (montaña -> montania)
-          const tipoParaBD = mapearTipoParaBD(item.tipo_kit)
-
-          return {
-            id_registro: idRegistro,
-            tipo_kit: tipoParaBD,
-            id_item: item.id_item,
-            cantidad: item.cantidad,
-          }
-        })
+        const detalles = items.map((item) => ({
+          id_inventario: idInventario,
+          id_producto: item.id_item, // id_item en frontend = id_producto en BD
+          cantidad: item.cantidad,
+        }))
 
         console.log('📋 Actualizando con detalles mapeados:', detalles)
 
-        const { error: insertError } = await supabase.from('detalle_inventario').insert(detalles)
+        const { error: insertError } = await supabase
+          .from('detalle_inventario_botiquin')
+          .insert(detalles)
 
         if (insertError) throw insertError
       }
@@ -617,16 +612,16 @@ export function useBotiquinDB() {
       console.log('🔍 Obteniendo inventario por ID:', idInventario)
 
       const { data, error: fetchError } = await supabase
-        .from('registro_inventario')
+        .from('inventario_botiquin') // CAMBIO: era registro_inventario
         .select(
           `
           *,
-          detalle_inventario (
+          detalle_inventario_botiquin (
             *
           )
         `,
         )
-        .eq('id_registro', idInventario)
+        .eq('id_inventario', idInventario)
         .single()
 
       if (fetchError) throw fetchError
@@ -637,21 +632,16 @@ export function useBotiquinDB() {
         // Procesar datos para incluir nombres de items
         const detallesConNombres = []
 
-        for (const detalle of data.detalle_inventario) {
-          // Mapear nombre de tabla para montaña/montania
-          const tableName = mapearTipoParaBD(detalle.tipo_kit)
-
+        for (const detalle of data.detalle_inventario_botiquin) {
           // Obtener nombre del item según el tipo
           const { data: itemData } = await supabase
-            .from(`${tableName}_items`)
+            .from('productos')
             .select('nombre')
-            .eq('id_item', detalle.id_item)
+            .eq('id_producto', detalle.id_producto)
             .single()
 
           detallesConNombres.push({
             ...detalle,
-            // Mapear tipo de vuelta para mostrar en UI (montania -> montaña)
-            tipo_kit: mapearTipoParaUI(detalle.tipo_kit),
             nombre_item: itemData?.nombre || 'Item desconocido',
           })
         }
@@ -659,12 +649,10 @@ export function useBotiquinDB() {
         const inventarioCompleto = {
           ...data,
           detalle_inventario: detallesConNombres,
-          // Crear estructura de items compatible
           items: detallesConNombres.map((item) => ({
-            id_item: item.id_item,
+            id_item: item.id_producto,
             nombre: item.nombre_item,
             cantidad: item.cantidad,
-            tipo_kit: item.tipo_kit,
           })),
         }
 
@@ -1311,6 +1299,151 @@ export function useBotiquinDB() {
     return null
   }
 
+  // Obtener productos por tipo desde la tabla 'productos'
+  const obtenerProductos = async (tipo) => {
+    try {
+      loading.value = true
+      error.value = null
+      // Consulta directa a la tabla productos filtrando por tipo
+      const { data, error: fetchError } = await supabase
+        .from('productos')
+        .select('*')
+        .eq('tipo', tipo)
+        .order('nombre')
+      if (fetchError) throw fetchError
+      return data || []
+    } catch (err) {
+      error.value = err.message
+      console.error('Error obteniendo productos:', err)
+      return []
+    } finally {
+      loading.value = false
+    }
+  }
+
+  // Registrar una reserva de botiquín (con cálculo de monto_total)
+  const reservarBotiquinDB = async (items, tipo) => {
+    // Verificar autenticación
+    const currentUser = await verificarAutenticacion()
+    if (!currentUser) {
+      const errorMsg = 'Debes estar autenticado para reservar un botiquín.'
+      error.value = errorMsg
+      throw new Error(errorMsg)
+    }
+    try {
+      loading.value = true
+      error.value = null
+      // Obtener ID del usuario interno
+      const id_usuario_interno = await obtenerIdUsuarioInterno()
+      // Calcular monto_total sumando los precios de los productos seleccionados
+      let monto_total = 0
+      for (const item of items) {
+        const { data: prod, error: prodError } = await supabase
+          .from('productos')
+          .select('precio')
+          .eq('id_producto', item.id_producto)
+          .single()
+        if (!prodError && prod && prod.precio) {
+          monto_total += (prod.precio || 0) * (item.cantidad || 0)
+        }
+      }
+      // Crear registro principal en reserva_botiquin (con monto_total)
+      const { data: reserva, error: reservaError } = await supabase
+        .from('reserva_botiquin')
+        .insert({ id_usuario: id_usuario_interno, monto_total })
+        .select()
+        .single()
+      if (reservaError) throw reservaError
+      // Insertar detalles en detalle_reserva_botiquin (usar id_producto)
+      const detalles = items.map((item) => ({
+        id_reserva: reserva.id_reserva,
+        id_producto: item.id_producto,
+        cantidad: item.cantidad,
+      }))
+      const { error: detallesError } = await supabase
+        .from('detalle_reserva_botiquin')
+        .insert(detalles)
+      if (detallesError) throw detallesError
+      return reserva
+    } catch (err) {
+      error.value = err.message
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  // Obtener historial combinado de botiquines y reservas
+  const obtenerHistorialBotiquinesYReservas = async () => {
+    const currentUser = await verificarAutenticacion()
+    if (!currentUser) return []
+    const id_usuario_interno = await obtenerIdUsuarioInterno()
+    // Botiquines (join para traer tipo y nombre del producto)
+    const { data: botiquines } = await supabase
+      .from('inventario_botiquin')
+      .select(
+        `
+        id_inventario, fecha, id_usuario,
+        detalle_inventario_botiquin(
+          id_producto, cantidad,
+          producto:productos(id_producto, nombre, tipo)
+        )
+      `,
+      )
+      .eq('id_usuario', id_usuario_interno)
+      .order('fecha', { ascending: false })
+    // Reservas (join para traer tipo y nombre del producto)
+    const { data: reservas } = await supabase
+      .from('reserva_botiquin')
+      .select(
+        `
+        id_reserva, fecha, monto_total, id_usuario,
+        detalle_reserva_botiquin(
+          id_producto, cantidad,
+          producto:productos(id_producto, nombre, tipo)
+        )
+      `,
+      )
+      .eq('id_usuario', id_usuario_interno)
+      .order('fecha', { ascending: false })
+    // Unificar y marcar tipo
+    const historial = []
+    for (const b of botiquines || []) {
+      // Mapear productos para incluir tipo y nombre
+      const productos = (b.detalle_inventario_botiquin || []).map((d) => ({
+        id_producto: d.id_producto,
+        cantidad: d.cantidad,
+        tipo: d.producto?.tipo || '',
+        nombre: d.producto?.nombre || '',
+      }))
+      historial.push({
+        tipo: 'botiquin',
+        id: b.id_inventario,
+        fecha: b.fecha,
+        productos,
+      })
+    }
+    for (const r of reservas || []) {
+      // Mapear productos para incluir tipo y nombre
+      const productos = (r.detalle_reserva_botiquin || []).map((d) => ({
+        id_producto: d.id_producto,
+        cantidad: d.cantidad,
+        tipo: d.producto?.tipo || '',
+        nombre: d.producto?.nombre || '',
+      }))
+      historial.push({
+        tipo: 'reserva',
+        id: r.id_reserva,
+        fecha: r.fecha,
+        productos,
+        monto_total: r.monto_total,
+      })
+    }
+    // Ordenar por fecha descendente
+    historial.sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
+    return historial
+  }
+
   return {
     loading,
     error,
@@ -1330,5 +1463,8 @@ export function useBotiquinDB() {
     debugObtenerCompra,
     obtenerHistorialCompras,
     actualizarCompra,
+    obtenerProductos,
+    reservarBotiquinDB,
+    obtenerHistorialBotiquinesYReservas,
   }
 }

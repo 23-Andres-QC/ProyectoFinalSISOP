@@ -1,4 +1,4 @@
-import { requireAuth, redirectIfAuthenticated } from '../middleware/auth.js'
+import { requireAuth, redirectIfAuthenticated, requireAdmin } from '../middleware/auth.js'
 
 const routes = [
   {
@@ -7,6 +7,11 @@ const routes = [
     children: [
       {
         path: '',
+        name: 'welcome',
+        component: () => import('pages/WelcomePage.vue'),
+      },
+      {
+        path: 'auth',
         name: 'auth',
         component: () => import('pages/AuthPage.vue'),
         beforeEnter: redirectIfAuthenticated,
@@ -22,45 +27,15 @@ const routes = [
         component: () => import('src/pages/AccidentesPage.vue'),
         beforeEnter: requireAuth,
       },
-      {
-        path: 'botiquin-opciones',
-        component: () => import('src/pages/BotiquinOpcionPage.vue'),
-        beforeEnter: requireAuth,
-      },
-      // 5 Formularios de Botiquín Unificados
-      {
-        path: 'botiquin-frm-hogar',
-        component: () => import('src/pages/BotiquinFrmHogar.vue'),
-        beforeEnter: requireAuth,
-      },
-      {
-        path: 'botiquin-frm-oficina',
-        component: () => import('src/pages/BotiquinFrmOficina.vue'),
-        beforeEnter: requireAuth,
-      },
+      // Solo el formulario unificado de botiquín
       {
         path: 'botiquin-frm-escolar',
-        component: () => import('src/pages/BotiquinFrmEscolar.vue'),
-        beforeEnter: requireAuth,
-      },
-      {
-        path: 'botiquin-frm-industria',
-        component: () => import('src/pages/BotiquinFrmIndustria.vue'),
-        beforeEnter: requireAuth,
-      },
-      {
-        path: 'botiquin-frm-montaña',
-        component: () => import('src/pages/BotiquinFrmMontaña.vue'),
-        beforeEnter: requireAuth,
-      },
-      {
-        path: 'botiquin',
-        component: () => import('src/pages/BotiquinyAccidentesPage.vue'),
+        component: () => import('src/pages/BotiquinFormularioPage.vue'),
         beforeEnter: requireAuth,
       },
       {
         path: 'historial-compras',
-        component: () => import('src/pages/HistorialComprasPage.vue'),
+        component: () => import('src/pages/HistorialReservasPage.vue'),
         beforeEnter: requireAuth,
       },
       {
@@ -71,7 +46,7 @@ const routes = [
       {
         path: 'admin/ordenes',
         component: () => import('src/pages/AdminOrdenesPage.vue'),
-        beforeEnter: requireAuth,
+        beforeEnter: requireAdmin,
       },
       // Rutas de recomendaciones
       { path: 'hogar', component: () => import('components/RecomendacionTipo01/Hogar.vue') },

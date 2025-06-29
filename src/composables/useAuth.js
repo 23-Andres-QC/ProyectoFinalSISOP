@@ -89,6 +89,18 @@ export function useAuth() {
       user.value = data.user
       session.value = data.session
 
+      // Obtener tipo_usuario desde la tabla usuarios y guardar en localStorage
+      const { data: userData, error: userError } = await supabase
+        .from('usuarios')
+        .select('tipo_usuario')
+        .eq('correo', email)
+        .single()
+      if (!userError && userData && userData.tipo_usuario) {
+        localStorage.setItem('tipo_usuario', userData.tipo_usuario)
+      } else {
+        localStorage.removeItem('tipo_usuario')
+      }
+
       return { success: true, data }
     } catch (err) {
       error.value = err.message
