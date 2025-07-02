@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Test Admin Login Final</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+      .log {
+        background: #f5f5f5;
+        padding: 10px;
+        margin: 10px 0;
+        border-radius: 5px;
+        font-family: monospace;
+      }
+      .success {
+        color: green;
+      }
+      .error {
+        color: red;
+      }
+      .info {
+        color: blue;
+      }
+      button {
+        padding: 10px 20px;
+        margin: 5px;
+        background: #007bff;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+      }
+      button:hover {
+        background: #0056b3;
+      }
+      input {
+        padding: 8px;
+        margin: 5px;
+        border: 1px solid #ddd;
+        border-radius: 3px;
+        width: 200px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>🔐 Test Final Admin Login</h1>
+
+    <div>
+      <h3>1. Verificar Estado Actual</h3>
+      <button onclick="verificarEstado()">Verificar Estado Actual</button>
+
+      <h3>2. Login como Admin</h3>
+      <input type="email" id="email" placeholder="Email admin" value="admin@minutosdevida.com" />
+      <input type="password" id="password" placeholder="Contraseña" value="admin123" />
+      <button onclick="loginAdmin()">Login Admin</button>
+
+      <h3>3. Simular Navegación Admin</h3>
+      <button onclick="simularMiddlewareAdmin()">Simular requireAdmin middleware</button>
+      <button onclick="verificarLocalStorage()">Verificar localStorage</button>
+
+      <h3>4. Limpiar</h3>
+      <button onclick="limpiarDatos()">Limpiar localStorage</button>
+    </div>
+
+    <div id="logs"></div>
+
+    <script type="module">
+      import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.0.0'
+
+      // Configuración de Supabase
+      const supabaseUrl = 'https://mpyjfrybtqnfqcfhlqxl.supabase.co'
+      const supabaseKey =
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1weWpmcnlidHFuZnFjZmhscXhsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzQzODM0MjYsImV4cCI6MjA0OTk1OTQyNn0.qoaKfJ4a9tJ9E_-6S5wj5yyUKXI5LDuQePJaVQk5oRU'
+      const supabase = createClient(supabaseUrl, supabaseKey)
+
+      let logCount = 0
+      function log(message, type = 'info') {
+        logCount++
+        const div = document.createElement('div')
+        div.className = `log ${type}`
+        div.innerHTML = `${logCount}. [${new Date().toLocaleTimeString()}] ${message}`
+        document.getElementById('logs').appendChild(div)
+        console.log(message)
+        div.scrollIntoView({ behavior: 'smooth' })
+      }
+
+      // Función para verificar estado actual
+      window.verificarEstado = async function () {
+        log('🔍 Verificando estado actual...', 'info')
+
+        // 1. Session de Supabase
+        const { data: session } = await supabase.auth.getSession()
+        log(`📊 Sesión Supabase: ${session.session ? '✅ Activa' : '❌ No activa'}`)
+        if (session.session) {
+          log(`👤 Usuario: ${session.session.user.email}`)
+        }
+
+        // 2. LocalStorage
+        const tipoUsuario = localStorage.getItem('tipo_usuario')
+        log(`💾 localStorage tipo_usuario: ${tipoUsuario || 'No encontrado'}`)
+
+        // 3. Verificación admin
+        const esAdmin = tipoUsuario === 'admin'
+        log(
+          `🔐 Es admin según localStorage: ${esAdmin ? '✅ SÍ' : '❌ NO'}`,
+          esAdmin ? 'success' : 'error',
+        )
+      }
+
+      // Función para login admin
+      window.loginAdmin = async function () {
+        const email = document.getElementById('email').value
+        const password = document.getElementById('password').value
+
+        log(`🚀 Iniciando login con ${email}...`, 'info')
+
+        try {
+          // 1. Login en Supabase
+          log('🔑 Haciendo login en Supabase...')
+          const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+            email,
+            password,
+          })
+
+          if (authError) {
+            log(`❌ Error de login: ${authError.message}`, 'error')
+            return
+          }
+
+          log('✅ Login exitoso en Supabase')
+
+          // 2. Obtener tipo de usuario
+          log('📋 Obteniendo tipo de usuario...')
+          const { data: userData, error: userError } = await supabase
+            .from('usuarios')
+            .select('tipo_usuario, nombre')
+            .eq('correo', email)
+            .single()
+
+          if (userError) {
+            log(`❌ Error obteniendo datos: ${userError.message}`, 'error')
+            return
+          }
+
+          log(`✅ Datos obtenidos: ${userData.nombre} (${userData.tipo_usuario})`)
+
+          // 3. Guardar en localStorage
+          localStorage.setItem('tipo_usuario', userData.tipo_usuario)
+          log(`💾 tipo_usuario guardado en localStorage: ${userData.tipo_usuario}`)
+
+          // 4. Verificación final
+          const esAdmin = userData.tipo_usuario === 'admin'
+          log(`🔐 Usuario es admin: ${esAdmin ? '✅ SÍ' : '❌ NO'}`, esAdmin ? 'success' : 'error')
+
+          if (esAdmin) {
+            log('🎉 ¡Login admin completado exitosamente!', 'success')
+          } else {
+            log('⚠️ Usuario logueado pero no es admin', 'error')
+          }
+        } catch (error) {
+          log(`💥 Error inesperado: ${error.message}`, 'error')
+        }
+      }
+
+      // Simular middleware requireAdmin
+      window.simularMiddlewareAdmin = function () {
+        log('🛡️ Simulando middleware requireAdmin...', 'info')
+
+        const tipoUsuario = localStorage.getItem('tipo_usuario')
+        log(`👤 Tipo usuario desde localStorage: ${tipoUsuario}`)
+
+        // Esta es la lógica exacta del middleware
+        if (tipoUsuario === 'admin') {
+          log('✅ Acceso admin autorizado - next() llamado', 'success')
+          log('🔄 Navegación a admin panel permitida', 'success')
+        } else {
+          log('❌ Acceso denegado - redirigiendo a /principal', 'error')
+          log('🔄 next("/principal") llamado', 'error')
+        }
+      }
+
+      // Verificar localStorage
+      window.verificarLocalStorage = function () {
+        log('💾 Verificando contenido completo de localStorage...', 'info')
+
+        const items = []
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i)
+          const value = localStorage.getItem(key)
+          items.push(`${key}: ${value}`)
+        }
+
+        if (items.length === 0) {
+          log('❌ localStorage está vacío')
+        } else {
+          log(`📋 localStorage contiene ${items.length} elementos:`)
+          items.forEach((item) => log(`  • ${item}`))
+        }
+      }
+
+      // Limpiar datos
+      window.limpiarDatos = async function () {
+        log('🧹 Limpiando datos...', 'info')
+
+        // Logout de Supabase
+        await supabase.auth.signOut()
+        log('✅ Logout de Supabase')
+
+        // Limpiar localStorage
+        localStorage.clear()
+        log('✅ localStorage limpiado')
+
+        log('🔄 Datos limpiados - listo para nuevo test', 'success')
+      }
+
+      // Verificar estado inicial
+      setTimeout(verificarEstado, 500)
+    </script>
+  </body>
+</html>

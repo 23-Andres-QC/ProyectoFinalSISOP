@@ -1,0 +1,105 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Test Rápido Admin</title>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  </head>
+  <body>
+    <h1>Test Rápido de Verificación Admin</h1>
+    <button onclick="testAuth()">Test Autenticación</button>
+    <button onclick="testUserType()">Test Tipo Usuario</button>
+    <button onclick="testInventarios()">Test Inventarios</button>
+    <div id="results"></div>
+
+    <script>
+      // Configurar Supabase (usar tus credenciales reales)
+      const supabase = supabase.createClient('tu-supabase-url', 'tu-supabase-anon-key')
+
+      function log(message) {
+        document.getElementById('results').innerHTML += '<p>' + message + '</p>'
+        console.log(message)
+      }
+
+      async function testAuth() {
+        log('🔍 Probando autenticación...')
+        try {
+          const {
+            data: { session },
+            error,
+          } = await supabase.auth.getSession()
+          if (error) throw error
+
+          if (session?.user) {
+            log('✅ Usuario autenticado: ' + session.user.email)
+            return session.user
+          } else {
+            log('❌ No hay usuario autenticado')
+            return null
+          }
+        } catch (error) {
+          log('💥 Error: ' + error.message)
+          return null
+        }
+      }
+
+      async function testUserType() {
+        log('🔍 Probando tipo de usuario...')
+        const user = await testAuth()
+        if (!user) return
+
+        try {
+          const { data, error } = await supabase
+            .from('usuarios')
+            .select('tipo_usuario, nombre')
+            .eq('correo', user.email)
+            .single()
+
+          if (error) throw error
+
+          log('✅ Tipo usuario: ' + data.tipo_usuario)
+          log('📝 Nombre: ' + data.nombre)
+          log('🔐 Es admin: ' + (data.tipo_usuario === 'admin'))
+
+          return data
+        } catch (error) {
+          log('💥 Error obteniendo tipo: ' + error.message)
+          return null
+        }
+      }
+
+      async function testInventarios() {
+        log('🔍 Probando consulta inventarios...')
+        const user = await testAuth()
+        if (!user) return
+
+        try {
+          // Primero obtener ID usuario interno
+          const { data: userData, error: userError } = await supabase
+            .from('usuarios')
+            .select('id_usuario')
+            .eq('correo', user.email)
+            .single()
+
+          if (userError) throw userError
+
+          // Luego consultar inventarios
+          const { data, error } = await Promise.race([
+            supabase
+              .from('inventario_botiquin')
+              .select('id_inventario, fecha_registro')
+              .eq('id_usuario', userData.id_usuario),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 3000)),
+          ])
+
+          if (error) throw error
+
+          log('✅ Inventarios encontrados: ' + (data?.length || 0))
+          return data
+        } catch (error) {
+          log('💥 Error consultando inventarios: ' + error.message)
+          return null
+        }
+      }
+    </script>
+  </body>
+</html>

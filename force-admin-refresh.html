@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Force Admin Refresh</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+      .log {
+        background: #f5f5f5;
+        padding: 10px;
+        margin: 10px 0;
+        border-radius: 5px;
+      }
+      .success {
+        color: green;
+      }
+      .error {
+        color: red;
+      }
+      button {
+        padding: 10px 20px;
+        margin: 5px;
+        background: #007bff;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>🔧 Forzar Refresh Admin</h1>
+
+    <button onclick="checkCurrentState()">1. Ver Estado Actual</button>
+    <button onclick="forceAdminLocalStorage()">2. Forzar Admin en localStorage</button>
+    <button onclick="refreshPage()">3. Recargar Página</button>
+    <button onclick="goToApp()">4. Ir a la App</button>
+
+    <div id="logs"></div>
+
+    <script>
+      function log(message, type = 'info') {
+        const div = document.createElement('div')
+        div.className = `log ${type}`
+        div.innerHTML = `[${new Date().toLocaleTimeString()}] ${message}`
+        document.getElementById('logs').appendChild(div)
+        console.log(message)
+      }
+
+      function checkCurrentState() {
+        log('🔍 Verificando estado actual...')
+
+        const tipoUsuario = localStorage.getItem('tipo_usuario')
+        log(`💾 localStorage tipo_usuario: ${tipoUsuario || 'NO ENCONTRADO'}`)
+
+        const esAdmin = tipoUsuario === 'admin'
+        log(
+          `🔐 Es admin según localStorage: ${esAdmin ? 'SÍ' : 'NO'}`,
+          esAdmin ? 'success' : 'error',
+        )
+
+        // Mostrar todo el localStorage
+        log('📋 Contenido completo de localStorage:')
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i)
+          const value = localStorage.getItem(key)
+          log(`  • ${key}: ${value}`)
+        }
+      }
+
+      function forceAdminLocalStorage() {
+        log('🔧 Forzando tipo_usuario = admin en localStorage...')
+
+        localStorage.setItem('tipo_usuario', 'admin')
+        log('✅ tipo_usuario establecido como "admin"', 'success')
+
+        // Verificar que se guardó
+        const verificacion = localStorage.getItem('tipo_usuario')
+        log(`✓ Verificación: ${verificacion}`, verificacion === 'admin' ? 'success' : 'error')
+
+        // Disparar evento de storage para que la app reaccione
+        window.dispatchEvent(
+          new StorageEvent('storage', {
+            key: 'tipo_usuario',
+            newValue: 'admin',
+            storageArea: localStorage,
+          }),
+        )
+        log('📡 Evento de storage disparado')
+      }
+
+      function refreshPage() {
+        log('🔄 Recargando la página de la app...')
+        // Si estamos en la misma ventana que la app
+        if (window.opener) {
+          window.opener.location.reload()
+          log('✅ Página de la app recargada')
+        } else {
+          log('⚠️ Abre este script desde la app o usa el botón "Ir a la App"')
+        }
+      }
+
+      function goToApp() {
+        log('🚀 Abriendo la aplicación...')
+        window.open('http://localhost:9007/', '_blank')
+      }
+
+      // Verificar estado inicial
+      setTimeout(checkCurrentState, 500)
+    </script>
+  </body>
+</html>

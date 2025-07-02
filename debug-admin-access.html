@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Debug Admin Access</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+      .log {
+        background: #f5f5f5;
+        padding: 10px;
+        margin: 10px 0;
+        border-radius: 5px;
+      }
+      .success {
+        color: green;
+      }
+      .error {
+        color: red;
+      }
+      button {
+        padding: 10px 20px;
+        margin: 5px;
+        background: #007bff;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>🔧 Debug Admin Access</h1>
+
+    <button onclick="checkStatus()">1. Verificar Estado Actual</button>
+    <button onclick="forceAdmin()">2. Forzar Admin</button>
+    <button onclick="testNavigation()">3. Test Navegación Admin</button>
+    <button onclick="clearAndReload()">4. Limpiar y Recargar</button>
+
+    <div id="logs"></div>
+
+    <script>
+      function log(message, type = 'info') {
+        const div = document.createElement('div')
+        div.className = `log ${type}`
+        div.innerHTML = `[${new Date().toLocaleTimeString()}] ${message}`
+        document.getElementById('logs').appendChild(div)
+        console.log(message)
+      }
+
+      function checkStatus() {
+        log('🔍 Verificando estado completo...')
+
+        // localStorage
+        const tipoUsuario = localStorage.getItem('tipo_usuario')
+        log(`💾 localStorage tipo_usuario: "${tipoUsuario}"`)
+        log(
+          `🔐 Es admin: ${tipoUsuario === 'admin'}`,
+          tipoUsuario === 'admin' ? 'success' : 'error',
+        )
+
+        // URL actual
+        log(`🌐 URL actual: ${window.location.href}`)
+        log(`📍 Path actual: ${window.location.pathname}`)
+
+        // Todos los items de localStorage
+        log('📋 Contenido completo de localStorage:')
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i)
+          const value = localStorage.getItem(key)
+          log(`  • ${key}: "${value}"`)
+        }
+      }
+
+      function forceAdmin() {
+        log('🔧 Forzando admin en localStorage...')
+        localStorage.setItem('tipo_usuario', 'admin')
+        log('✅ tipo_usuario establecido como "admin"', 'success')
+        checkStatus()
+      }
+
+      function testNavigation() {
+        log('🧪 Testeando navegación a admin...')
+
+        const tipoUsuario = localStorage.getItem('tipo_usuario')
+        if (tipoUsuario === 'admin') {
+          log('✅ Usuario es admin - intentando navegar...', 'success')
+          window.open('http://localhost:9007/admin/ordenes', '_blank')
+        } else {
+          log('❌ Usuario no es admin - no se puede navegar', 'error')
+          log('Ejecuta "Forzar Admin" primero')
+        }
+      }
+
+      function clearAndReload() {
+        log('🧹 Limpiando localStorage y recargando...')
+        localStorage.clear()
+        log('✅ localStorage limpiado')
+        setTimeout(() => {
+          window.location.reload()
+        }, 1000)
+      }
+
+      // Verificar estado inicial
+      setTimeout(checkStatus, 500)
+    </script>
+  </body>
+</html>

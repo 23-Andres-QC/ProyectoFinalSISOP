@@ -1,0 +1,99 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Crear Usuario Admin</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  </head>
+  <body>
+    <h1>Crear Usuario Administrador</h1>
+
+    <div>
+      <h3>Crear nuevo admin:</h3>
+      <input type="email" id="emailAdmin" placeholder="Email del admin" value="admin@test.com" />
+      <input type="password" id="passwordAdmin" placeholder="Contraseña" value="123456" />
+      <input type="text" id="nombreAdmin" placeholder="Nombre" value="Administrador" />
+      <button onclick="crearAdmin()">Crear Admin</button>
+    </div>
+
+    <div>
+      <h3>Convertir usuario existente a admin:</h3>
+      <input type="email" id="emailExistente" placeholder="Email del usuario existente" />
+      <button onclick="convertirAAdmin()">Convertir a Admin</button>
+    </div>
+
+    <div id="resultado"></div>
+
+    <script>
+      // Configuración de Supabase (reemplaza con tus datos)
+      const supabaseUrl = 'https://your-project.supabase.co'
+      const supabaseKey = 'your-anon-key'
+
+      // Si tienes los datos de Supabase en tu aplicación, cópialos aquí
+      // O mejor aún, usa este script desde la consola del navegador en tu aplicación
+
+      async function crearAdmin() {
+        const email = document.getElementById('emailAdmin').value
+        const password = document.getElementById('passwordAdmin').value
+        const nombre = document.getElementById('nombreAdmin').value
+
+        try {
+          // Primero crear el usuario en auth
+          const { data, error } = await supabase.auth.signUp({
+            email: email,
+            password: password,
+          })
+
+          if (error) throw error
+
+          // Luego actualizar el tipo de usuario en la base de datos
+          const { data: updateData, error: updateError } = await supabase
+            .from('usuarios')
+            .update({ tipo_usuario: 'admin' })
+            .eq('correo', email)
+
+          if (updateError) throw updateError
+
+          document.getElementById('resultado').innerHTML =
+            `<p style="color: green;">Admin creado exitosamente: ${email}</p>`
+        } catch (error) {
+          document.getElementById('resultado').innerHTML =
+            `<p style="color: red;">Error: ${error.message}</p>`
+        }
+      }
+
+      async function convertirAAdmin() {
+        const email = document.getElementById('emailExistente').value
+
+        try {
+          const { data, error } = await supabase
+            .from('usuarios')
+            .update({ tipo_usuario: 'admin' })
+            .eq('correo', email)
+
+          if (error) throw error
+
+          document.getElementById('resultado').innerHTML =
+            `<p style="color: green;">Usuario ${email} convertido a admin exitosamente</p>`
+        } catch (error) {
+          document.getElementById('resultado').innerHTML =
+            `<p style="color: red;">Error: ${error.message}</p>`
+        }
+      }
+
+      // Mensaje para usar desde la consola
+      console.log(`
+Para crear un admin desde la consola del navegador en tu aplicación:
+
+// Obtener Supabase de la aplicación
+const { supabase } = await import('./src/supabase.js');
+
+// Crear admin
+await supabase.from('usuarios').update({ tipo_usuario: 'admin' }).eq('correo', 'tu-email@example.com');
+
+// Verificar
+const { data } = await supabase.from('usuarios').select('*').eq('tipo_usuario', 'admin');
+console.log('Admins:', data);
+        `)
+    </script>
+  </body>
+</html>

@@ -1,0 +1,64 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Test Admin Panel Access</title>
+  </head>
+  <body>
+    <h2>Prueba de Acceso al Panel Admin</h2>
+
+    <div>
+      <h3>Simular Usuario Admin</h3>
+      <button onclick="setAdmin()">Establecer como Admin</button>
+      <button onclick="setCliente()">Establecer como Cliente</button>
+      <button onclick="clearUser()">Limpiar Usuario</button>
+    </div>
+
+    <div>
+      <h3>Estado Actual</h3>
+      <p>Tipo Usuario: <span id="tipoUsuario"></span></p>
+      <p>Es Admin: <span id="esAdmin"></span></p>
+    </div>
+
+    <div>
+      <h3>Navegación</h3>
+      <a href="http://localhost:9008/" target="_blank">Ir a la Aplicación</a>
+    </div>
+
+    <script>
+      function setAdmin() {
+        localStorage.setItem('tipo_usuario', 'admin')
+        window.dispatchEvent(new CustomEvent('tipoUsuarioChanged'))
+        updateStatus()
+        alert('Usuario establecido como Admin')
+      }
+
+      function setCliente() {
+        localStorage.setItem('tipo_usuario', 'cliente')
+        window.dispatchEvent(new CustomEvent('tipoUsuarioChanged'))
+        updateStatus()
+        alert('Usuario establecido como Cliente')
+      }
+
+      function clearUser() {
+        localStorage.removeItem('tipo_usuario')
+        window.dispatchEvent(new CustomEvent('tipoUsuarioChanged'))
+        updateStatus()
+        alert('Usuario limpiado')
+      }
+
+      function updateStatus() {
+        const tipo = localStorage.getItem('tipo_usuario') || 'No definido'
+        const esAdmin = tipo === 'admin'
+
+        document.getElementById('tipoUsuario').textContent = tipo
+        document.getElementById('esAdmin').textContent = esAdmin ? 'SÍ' : 'NO'
+      }
+
+      // Actualizar estado inicial
+      updateStatus()
+
+      // Escuchar cambios
+      window.addEventListener('tipoUsuarioChanged', updateStatus)
+    </script>
+  </body>
+</html>

@@ -1,0 +1,35 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Test Admin Access Debug</title>
+  </head>
+  <body>
+    <h1>Debug Admin Access</h1>
+    <div id="debug-info"></div>
+
+    <script>
+      const debugDiv = document.getElementById('debug-info')
+
+      // Verificar datos en localStorage
+      const userData = localStorage.getItem('userData')
+      const tipoUsuario = localStorage.getItem('tipo_usuario')
+
+      let output = '<h3>Debug Info:</h3>'
+      output += '<p><strong>userData:</strong> ' + (userData || 'No encontrado') + '</p>'
+      output += '<p><strong>tipo_usuario:</strong> ' + (tipoUsuario || 'No encontrado') + '</p>'
+
+      if (userData) {
+        try {
+          const user = JSON.parse(userData)
+          output += '<h4>Datos del usuario parseados:</h4>'
+          output += '<pre>' + JSON.stringify(user, null, 2) + '</pre>'
+          output += '<p><strong>¿Es admin?:</strong> ' + (user.tipo_usuario === 'admin') + '</p>'
+        } catch (e) {
+          output += '<p><strong>Error parseando userData:</strong> ' + e.message + '</p>'
+        }
+      }
+
+      debugDiv.innerHTML = output
+    </script>
+  </body>
+</html>

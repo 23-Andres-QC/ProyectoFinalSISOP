@@ -1,0 +1,159 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Convertir Usuario a Admin</title>
+    <style>
+      body {
+        font-family: Arial;
+        padding: 20px;
+      }
+      .log {
+        background: #f5f5f5;
+        padding: 10px;
+        margin: 10px 0;
+        border-radius: 5px;
+      }
+      .success {
+        color: green;
+        font-weight: bold;
+      }
+      .error {
+        color: red;
+        font-weight: bold;
+      }
+      button {
+        padding: 10px 20px;
+        margin: 5px;
+        background: #007bff;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>🔧 Convertir Usuario a Admin</h2>
+
+    <button onclick="verificarYConvertir()">1. Verificar y Convertir Usuario Actual</button>
+    <button onclick="forzarLocalStorage()">2. Forzar localStorage admin</button>
+    <button onclick="verificarEstado()">3. Verificar Estado Actual</button>
+
+    <div id="logs"></div>
+
+    <script type="module">
+      import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.0.0'
+
+      const supabaseUrl = 'https://mpyjfrybtqnfqcfhlqxl.supabase.co'
+      const supabaseKey =
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1weWpmcnlidHFuZnFjZmhscXhsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzQzODM0MjYsImV4cCI6MjA0OTk1OTQyNn0.qoaKfJ4a9tJ9E_-6S5wj5yyUKXI5LDuQePJaVQk5oRU'
+      const supabase = createClient(supabaseUrl, supabaseKey)
+
+      function log(message, type = 'info') {
+        const div = document.createElement('div')
+        div.className = `log ${type}`
+        div.innerHTML = `[${new Date().toLocaleTimeString()}] ${message}`
+        document.getElementById('logs').appendChild(div)
+        console.log(message)
+      }
+
+      window.verificarYConvertir = async function () {
+        log('🔍 Obteniendo sesión actual...')
+
+        try {
+          // Obtener sesión actual
+          const { data: session } = await supabase.auth.getSession()
+
+          if (!session.session) {
+            log('❌ No hay sesión activa. Por favor loguéate primero.', 'error')
+            return
+          }
+
+          const email = session.session.user.email
+          log(`👤 Usuario actual: ${email}`)
+
+          // Buscar usuario en BD
+          const { data: userData, error: searchError } = await supabase
+            .from('usuarios')
+            .select('correo, tipo_usuario, nombre')
+            .eq('correo', email)
+            .single()
+
+          if (searchError) {
+            log(`❌ Error buscando usuario: ${searchError.message}`, 'error')
+            return
+          }
+
+          log(`📋 Usuario encontrado: ${userData.nombre} (${userData.tipo_usuario})`)
+
+          if (userData.tipo_usuario === 'admin') {
+            log('✅ Usuario ya es admin!', 'success')
+          } else {
+            log('🔧 Convirtiendo a admin...')
+
+            // Actualizar en BD
+            const { error: updateError } = await supabase
+              .from('usuarios')
+              .update({ tipo_usuario: 'admin' })
+              .eq('correo', email)
+
+            if (updateError) {
+              log(`❌ Error actualizando: ${updateError.message}`, 'error')
+              return
+            }
+
+            log('✅ Usuario convertido a admin en BD', 'success')
+          }
+
+          // Actualizar localStorage
+          localStorage.setItem('tipo_usuario', 'admin')
+          log('✅ localStorage actualizado', 'success')
+
+          log('🎉 ¡Conversión completada! Recarga la página.', 'success')
+        } catch (error) {
+          log(`💥 Error: ${error.message}`, 'error')
+        }
+      }
+
+      window.forzarLocalStorage = function () {
+        localStorage.setItem('tipo_usuario', 'admin')
+        log('🔧 localStorage forzado a "admin"', 'success')
+        log('🔄 Recarga la página para ver cambios', 'success')
+      }
+
+      window.verificarEstado = async function () {
+        log('🔍 Verificando estado actual...')
+
+        // 1. Sesión Supabase
+        const { data: session } = await supabase.auth.getSession()
+        log(`📊 Sesión Supabase: ${session.session ? '✅ Activa' : '❌ No activa'}`)
+
+        if (session.session) {
+          log(`👤 Email: ${session.session.user.email}`)
+
+          // 2. Usuario en BD
+          const { data: userData } = await supabase
+            .from('usuarios')
+            .select('tipo_usuario, nombre')
+            .eq('correo', session.session.user.email)
+            .single()
+
+          if (userData) {
+            log(`📋 BD: ${userData.nombre} (${userData.tipo_usuario})`)
+          }
+        }
+
+        // 3. LocalStorage
+        const tipoLS = localStorage.getItem('tipo_usuario')
+        log(`💾 localStorage: ${tipoLS || 'No definido'}`)
+
+        // 4. Resultado final
+        const esAdmin = tipoLS === 'admin'
+        log(`🔐 ¿Es admin?: ${esAdmin ? '✅ SÍ' : '❌ NO'}`, esAdmin ? 'success' : 'error')
+      }
+
+      // Verificar estado inicial
+      setTimeout(verificarEstado, 500)
+    </script>
+  </body>
+</html>
